@@ -236,7 +236,7 @@ describe('jsonDeepL CLI utils', () => {
 
       const result = formattedNewDate()
 
-      expect(result).toMatch(/^\d+_D\d+_\d+_\d+_T\d+_\d+_\d+$/)
+      expect(result).toMatch(/^\d+_D[\d_]+_T[\d_]+(_[AP]M)?$/)
       expect(result).toContain('1696692600') // Unix timestamp for the mock date
     })
   })

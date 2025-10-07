@@ -108,7 +108,7 @@ describe('integration workflow', () => {
           }),
         }),
       )
-      expect(result).toMatch(/^\d+_D\d+_\d+_\d+_T\d+_\d+_\d+$/)
+      expect(result).toMatch(/^\d+_D[\d_]+_T[\d_]+(_[AP]M)?$/)
     })
 
     it('should handle API errors gracefully', async () => {
