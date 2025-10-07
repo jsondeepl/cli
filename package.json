@@ -1,8 +1,8 @@
 {
-  "name": "packageName",
+  "name": "@jsondeepl/cli",
   "version": "0.0.0",
-  "description": "",
-  "repository": "unjs/packageName",
+  "description": "A CLI tool to translate JSON files using JsonDeepL API",
+  "repository": "jsondeepl/cli",
   "license": "MIT",
   "sideEffects": false,
   "type": "module",
@@ -16,11 +16,11 @@
   "scripts": {
     "build": "obuild",
     "dev": "vitest dev",
-    "lint": "eslint . && prettier -c .",
-    "lint:fix": "automd && eslint . --fix && prettier -w .",
-    "prepack": "pnpm build",
-    "release": "pnpm test && changelogen --release && npm publish && git push --follow-tags",
-    "test": "pnpm lint && pnpm test:types && vitest run --coverage",
+    "lint": "eslint .",
+    "lint:fix": "automd && eslint . --fix",
+    "prepack": "npm run build",
+    "release": "npm run test && changelogen --release && npm run publish && git push --follow-tags",
+    "test": "npm run lint && npm run test:types && vitest run --coverage",
     "test:types": "tsc --noEmit --skipLibCheck"
   },
   "devDependencies": {
@@ -33,6 +33,5 @@
     "obuild": "^0.2.1",
     "typescript": "^5.9.3",
     "vitest": "^3.2.4"
-  },
-  "packageManager": "pnpm@10.18.1"
+  }
 }

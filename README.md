@@ -1,40 +1,79 @@
-# packageName
+# Json DeepL CLI
 
-<!-- automd:badges color=yellow -->
+<!-- automd:badges color=purple -->
 
-[![npm version](https://img.shields.io/npm/v/packageName?color=yellow)](https://npmjs.com/package/packageName)
-[![npm downloads](https://img.shields.io/npm/dm/packageName?color=yellow)](https://npm.chart.dev/packageName)
+[![npm version](https://img.shields.io/npm/v/@jsondeepl/cli?color=purple)](https://npmjs.com/package/@jsondeepl/cli)
+[![npm downloads](https://img.shields.io/npm/dm/@jsondeepl/cli?color=purple)](https://npm.chart.dev/@jsondeepl/cli)
 
 <!-- /automd -->
 
-This is my package description.
+A CLI tool to translate JSON files using JsonDeepL API
 
 ## Usage
 
-Install the package:
+### 1. Install the package:
 
 ```sh
-# ✨ Auto-detect (supports npm, yarn, pnpm, deno and bun)
-npx nypm install packageName
+npm i -g @jsondeepl/cli
 ```
 
-Import:
+### 2. Run command in your terminal:
 
-<!-- automd:jsimport cdn name="pkg" -->
-
-**ESM** (Node.js, Bun, Deno)
-
-```js
-import {} from "pkg";
+```sh
+jsondeepl
 ```
 
-**CDN** (Deno, Bun and Browsers)
+First time you run the command for a project, it will automatically create a `/jsondeepl` directory and `/jsondeepl/config.json` configuration file.
+You will need Your [JsonDeepL API key](https://jsondeepl.com/dashboard/api-keys).
 
-```js
-import {} from "https://esm.sh/pkg";
+```json
+// jsondeepl/config.json
+{
+  "apiKey": "",
+  "engine": "deepl",
+  "formality": "prefer_less",
+  "langDir": "./i18n/locales",
+  "options": {
+    "autoMerge": true,
+    "prompt": true
+  },
+  "source": "en",
+  "target": [
+    "ar",
+    "bg",
+    "cs",
+    "da",
+    "de",
+    "el",
+    "en-GB",
+    "en-US",
+    "es",
+    "et",
+    "fi",
+    "fr",
+    "hu",
+    "id",
+    "it",
+    "ja",
+    "ko",
+    "lt",
+    "lv",
+    "nb",
+    "nl",
+    "pl",
+    "pt-BR",
+    "pt-PT",
+    "ro",
+    "ru",
+    "sk",
+    "sl",
+    "sv",
+    "tr",
+    "uk",
+    "zh"
+  ]
+}
 ```
-
-<!-- /automd -->
 
 ## Development
 
@@ -54,19 +93,11 @@ import {} from "https://esm.sh/pkg";
 
 <!-- automd:contributors license=MIT -->
 
-Published under the [MIT](https://github.com/unjs/packageName/blob/main/LICENSE) license.
-Made by [community](https://github.com/unjs/packageName/graphs/contributors) 💛
+Published under the [MIT](https://github.com/jsondeepl/cli/blob/main/LICENSE) license.
+Made by [community](https://github.com/jsondeepl/cli/graphs/contributors) 💛
 <br><br>
-<a href="https://github.com/unjs/packageName/graphs/contributors">
-<img src="https://contrib.rocks/image?repo=unjs/packageName" />
+<a href="https://github.com/jsondeepl/cli/graphs/contributors">
+<img src="https://contrib.rocks/image?repo=jsondeepl/cli" />
 </a>
-
-<!-- /automd -->
-
-<!-- automd:with-automd -->
-
----
-
-_🤖 auto updated with [automd](https://automd.unjs.io)_
 
 <!-- /automd -->

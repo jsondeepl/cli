@@ -1,0 +1,15 @@
+{
+  "welcome": "Welcome to our application",
+  "navigation": {
+    "home": "Home",
+    "about": "About"
+  },
+  "forms": {
+    "login": {
+      "title": "Login",
+      "username": "Username",
+      "password": "Password",
+      "submit": "Sign In"
+    }
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "welcome": "Welcome to our application",
+  "navigation": {
+    "home": "Home",
+    "about": "About",
+    "contact": "Contact"
+  },
+  "forms": {
+    "login": {
+      "title": "Login",
+      "username": "Username",
+      "password": "Password",
+      "submit": "Sign In"
+    },
+    "register": {
+      "title": "Create Account",
+      "email": "Email Address",
+      "confirmPassword": "Confirm Password"
+    }
+  },
+  "messages": {
+    "success": "Operation completed successfully",
+    "error": "An error occurred",
+    "loading": "Please wait..."
+  }
+}

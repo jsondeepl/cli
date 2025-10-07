@@ -1,0 +1,20 @@
+{
+  "welcome": "Bienvenue dans notre application",
+  "navigation": {
+    "home": "Accueil",
+    "about": "À propos",
+    "contact": "Contact"
+  },
+  "forms": {
+    "login": {
+      "title": "Connexion",
+      "username": "Nom d'utilisateur",
+      "password": "Mot de passe",
+      "submit": "Se connecter"
+    }
+  },
+  "messages": {
+    "success": "Opération réussie",
+    "error": "Une erreur s'est produite"
+  }
+}
