@@ -1,0 +1,18 @@
+name: Workflow Status
+
+on:
+  workflow_run:
+    workflows: ["CI", "Release"]
+    types: [completed]
+
+jobs:
+  status:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check workflow status
+        run: |
+          if [ "${{ github.event.workflow_run.conclusion }}" != "success" ]; then
+            echo "Workflow failed: ${{ github.event.workflow_run.name }}"
+            exit 1
+          fi
+          echo "Workflow completed successfully: ${{ github.event.workflow_run.name }}"

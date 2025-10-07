@@ -10,6 +10,9 @@
     ".": "./dist/index.mjs"
   },
   "types": "./dist/index.d.mts",
+  "bin": {
+    "jsondeepl": "./dist/index.mjs"
+  },
   "files": [
     "dist"
   ],
@@ -19,7 +22,7 @@
     "lint": "eslint .",
     "lint:fix": "automd && eslint . --fix",
     "prepack": "npm run build",
-    "release": "npm run test && changelogen --release && npm run publish && git push --follow-tags",
+    "release": "npm run test && changelogen --release && npm publish && git push --follow-tags",
     "test": "npm run lint && npm run test:types && vitest run --coverage",
     "test:types": "tsc --noEmit --skipLibCheck"
   },
