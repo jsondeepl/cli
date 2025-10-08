@@ -38,16 +38,15 @@ jobs:
       - name: Build package
         run: npm run build
         
+      - name: Configure Git
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+        
       - name: Generate changelog and bump version
         run: npx changelogen@latest --release --push --patch
         
       - name: Publish to npm
-        run: npm publish --provenance
+        run: npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          
-      - name: Push changes and tags
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git push --follow-tags
