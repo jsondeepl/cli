@@ -46,7 +46,7 @@ export const defaultConfig: ConfigOptions = {
   engine: 'deepl',
   formality: 'prefer_less',
   options: {
-    autoMerge: true,
+    autoMerge: false,
     prompt: true,
   },
 }
