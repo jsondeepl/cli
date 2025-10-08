@@ -39,7 +39,7 @@ describe('configuration system', () => {
       expect(defaultConfig).toHaveProperty('engine', 'deepl')
       expect(defaultConfig).toHaveProperty('formality', 'prefer_less')
       expect(defaultConfig).toHaveProperty('options')
-      expect(defaultConfig.options).toHaveProperty('autoMerge', true)
+      expect(defaultConfig.options).toHaveProperty('autoMerge', false)
       expect(defaultConfig.options).toHaveProperty('prompt', true)
     })
 
