@@ -51,6 +51,7 @@ export const defaultConfig: ConfigOptions = {
   },
 }
 
+// Load and validate configuration
 export async function useConfigLoader(): Promise<ConfigOptions> {
   consola.info('Loading configuration...')
   const configPath = resolve('jsondeepl/config.json')
