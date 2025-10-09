@@ -4,6 +4,9 @@ on:
   push:
     branches: [main]
 
+  pull_request:
+    branches: [main]
+
 permissions:
   contents: write
   id-token: write # Required for npm provenance
@@ -44,7 +47,7 @@ jobs:
           git config --local user.name "GitHub Action"
         
       - name: Generate changelog and bump version
-        run: npx changelogen@latest --release --push --patch
+        run: npx changelogen@latest --release --push
         
       - name: Publish to npm
         run: npm publish --provenance --access public
