@@ -49,6 +49,11 @@ jobs:
       - name: Generate changelog and bump version
         run: npx changelogen@latest --release --push
         
+      - name: Create GitHub Release
+        run: npx changelogen@latest gh release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        
       - name: Publish to npm
         run: npm publish --provenance --access public
         env:
