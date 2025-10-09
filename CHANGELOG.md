@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.0.3
+
+[compare changes](https://github.com/jsondeepl/cli/compare/v0.0.2...v0.0.3)
+
+### 🤖 CI
+
+- Github release fix ([46446f9](https://github.com/jsondeepl/cli/commit/46446f9))
+
+### ❤️ Contributors
+
+- Kian Salout ([@Kiansa](https://github.com/Kiansa))
+
 ## v0.0.2
 
 [compare changes](https://github.com/jsondeepl/cli/compare/v0.0.1...v0.0.2)

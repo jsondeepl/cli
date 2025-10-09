@@ -1,6 +1,6 @@
 {
   "name": "@jsondeepl/cli",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "A CLI tool to translate JSON files using JsonDeepL API",
   "repository": "jsondeepl/cli",
   "license": "MIT",
