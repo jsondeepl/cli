@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.0.5
+
+[compare changes](https://github.com/jsondeepl/cli/compare/v0.0.4...v0.0.5)
+
+### 🩹 Fixes
+
+- Missing consola dep ([2441403](https://github.com/jsondeepl/cli/commit/2441403))
+
+### ❤️ Contributors
+
+- Kian Salout ([@Kiansa](https://github.com/Kiansa))
+
 ## v0.0.4
 
 [compare changes](https://github.com/jsondeepl/cli/compare/v0.0.3...v0.0.4)
