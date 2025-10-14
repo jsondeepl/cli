@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.0.4
+
+[compare changes](https://github.com/jsondeepl/cli/compare/v0.0.3...v0.0.4)
+
+### 🩹 Fixes
+
+- Executable ([ba72337](https://github.com/jsondeepl/cli/commit/ba72337))
+
+### ❤️ Contributors
+
+- Kian Salout ([@Kiansa](https://github.com/Kiansa))
+
 ## v0.0.3
 
 [compare changes](https://github.com/jsondeepl/cli/compare/v0.0.2...v0.0.3)
