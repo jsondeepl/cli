@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.0.7
+
+[compare changes](https://github.com/jsondeepl/cli/compare/v0.0.6...v0.0.7)
+
+### 🤖 CI
+
+- Update id-token permission comment for clarity ([57050fa](https://github.com/jsondeepl/cli/commit/57050fa))
+
+### ❤️ Contributors
+
+- Kian Salout ([@Kiansa](https://github.com/Kiansa))
+
 ## v0.0.6
 
 [compare changes](https://github.com/jsondeepl/cli/compare/v0.0.5...v0.0.6)
