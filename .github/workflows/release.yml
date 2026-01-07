@@ -9,7 +9,7 @@ on:
 
 permissions:
   contents: write
-  id-token: write # Required for npm provenance
+  id-token: write # Required for npm provenance & OIDC
   pull-requests: write # Required for Codecov in CI workflow
   statuses: write # Required for Codecov in CI workflow
 
@@ -56,5 +56,3 @@ jobs:
         
       - name: Publish to npm
         run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
