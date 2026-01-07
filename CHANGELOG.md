@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.0.6
+
+[compare changes](https://github.com/jsondeepl/cli/compare/v0.0.5...v0.0.6)
+
+### 🏡 Chore
+
+- Update dependencies and refactor consola import ([ebd739e](https://github.com/jsondeepl/cli/commit/ebd739e))
+
+### ❤️ Contributors
+
+- Kian Salout ([@Kiansa](https://github.com/Kiansa))
+
 ## v0.0.5
 
 [compare changes](https://github.com/jsondeepl/cli/compare/v0.0.4...v0.0.5)
