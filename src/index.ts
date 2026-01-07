@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import consola from 'consola'
+import { consola } from 'consola'
 import { useConfigLoader } from './config.ts'
 import {
   createLockFile,
