@@ -2,8 +2,12 @@ import type { Config, ConfigOptions } from './types/common.types.ts'
 import * as fs from 'node:fs'
 import process from 'node:process'
 import { consola } from 'consola'
+import { config as dotenvConfig } from 'dotenv'
 import { resolve } from 'pathe'
 import { ensureDirectoryExistence, useUser } from './utils.ts'
+
+// Load environment variables from .env file
+dotenvConfig()
 
 export const defaultConfig: ConfigOptions = {
   source: 'en',
