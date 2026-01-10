@@ -136,15 +136,6 @@ describe('jsonDeepL CLI utils', () => {
         keep_this: 'intact',
       })
     })
-
-    it('should not merge arrays (treat as primitive values)', async () => {
-      const target = { arr: ['a', 'b'] }
-      const source = { arr: ['c', 'd'] }
-
-      const result = await mergeFiles(target, source)
-
-      expect(result).toEqual({ arr: ['c', 'd'] })
-    })
   })
 
   describe('useCount', () => {
@@ -174,7 +165,7 @@ describe('jsonDeepL CLI utils', () => {
     })
 
     it('should ignore non-string values', async () => {
-      const obj = {
+      const obj: any = {
         text: 'hello',
         number: 123,
         boolean: true,

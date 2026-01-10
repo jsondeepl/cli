@@ -1,14 +1,16 @@
-export interface ConfigOptions {
-  source: SourceLanguageCode | AiLangCodes
-  target: TargetLanguageCode[] | AiLangCodes[]
+export type ConfigOptions = {
+  source: SourceLanguageCode
+  target: TargetLanguageCode[]
   langDir: string
-  apiKey: string
-  engine: 'deepl' | 'ai'
-  formality?: 'default' | 'prefer_more' | 'prefer_less'
+  formality?: 'prefer_more' | 'prefer_less'
   options: {
     autoMerge: boolean
     prompt: boolean
   }
+}
+
+export type Config = ConfigOptions & {
+  apiKey: string
 }
 
 // deepl languages
@@ -17,56 +19,32 @@ export interface ConfigOptions {
  * Note: although the language code type definitions are case-sensitive, this package and the DeepL
  * API accept case-insensitive language codes.
  */
-type CommonLanguageCode
-  = | 'ar'
-    | 'bg'
-    | 'cs'
-    | 'da'
-    | 'de'
-    | 'el'
-    | 'es'
-    | 'et'
-    | 'fi'
-    | 'fr'
-    | 'hu'
-    | 'id'
-    | 'it'
-    | 'ja'
-    | 'ko'
-    | 'lt'
-    | 'lv'
-    | 'nb'
-    | 'nl'
-    | 'pl'
-    | 'ro'
-    | 'ru'
-    | 'sk'
-    | 'sl'
-    | 'sv'
-    | 'tr'
-    | 'uk'
-    | 'zh'
-
+type CommonLanguageCode = 'ar' | 'bg' | 'cs' | 'da' | 'de' | 'el' | 'es' | 'et' | 'fi' | 'fr' | 'he' | 'hu' | 'id' | 'it' | 'ja' | 'ko' | 'lt' | 'lv' | 'nb' | 'nl' | 'pl' | 'ro' | 'ru' | 'sk' | 'sl' | 'sv' | 'th' | 'tr' | 'uk' | 'vi' | 'zh'
 /**
  * Language codes that may be used as a source language.
  * Note: although the language code type definitions are case-sensitive, this package and the DeepL
  * API accept case-insensitive language codes.
  */
 export type SourceLanguageCode = CommonLanguageCode | 'en' | 'pt'
-
 /**
  * Language codes that may be used as a target language.
  * Note: although the language code type definitions are case-sensitive, this package and the DeepL
  * API accept case-insensitive language codes.
  */
-export type TargetLanguageCode
-  = | CommonLanguageCode
-    | 'en-GB'
-    | 'en-US'
-    | 'pt-BR'
-    | 'pt-PT'
-    | 'zh-HANS'
-    | 'zh-HANT'
+export type TargetLanguageCode = CommonLanguageCode | 'en-GB' | 'en-US' | 'pt-BR' | 'pt-PT' | 'zh-HANS' | 'zh-HANT'
+
+export type JsonFileObject = {
+  [key: string]: string | JsonFileObject
+}
+
+export type UseUser = {
+  apiKey: string
+  user_id: string
+  isActive: true
+  credit_balance: number
+  total: number
+  after: number
+}
 
 // #region
 /**

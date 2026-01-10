@@ -1,4 +1,4 @@
-import type { ConfigOptions } from '../src/types/common.types.js'
+import type { Config } from '../src/types/common.types.js'
 import * as fs from 'node:fs'
 import { resolve } from 'pathe'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -7,7 +7,7 @@ import {
   useExtract,
   useMerging,
   useTranslateJSON,
-  useUserCredit,
+  useUser,
 } from '../src/utils.js'
 
 // Mock external dependencies
@@ -28,12 +28,11 @@ vi.mock('consola', () => ({
 }))
 
 describe('integration workflow', () => {
-  const mockConfig: ConfigOptions = {
+  const mockConfig: Config = {
     source: 'en',
     target: ['fr', 'es'],
     langDir: './test/fixtures',
     apiKey: 'test-api-key',
-    engine: 'deepl',
     formality: 'prefer_less',
     options: {
       autoMerge: true,
@@ -159,29 +158,31 @@ describe('integration workflow', () => {
     })
   })
 
-  describe('useUserCredit', () => {
+  describe('useUser', () => {
     it('should proceed when user has sufficient credits', async () => {
       const { ofetch } = await import('ofetch')
       const { consola } = await import('consola')
 
-      const mockCreditResponse = {
-        balance: 100,
+      const mockUserResponse = {
+        user_id: 'user1',
+        isActive: true,
+        credit_balance: 100,
         total: 10,
         after: 90,
       }
 
-      vi.mocked(ofetch).mockResolvedValue(mockCreditResponse)
+      vi.mocked(ofetch).mockResolvedValue(mockUserResponse)
 
-      await useUserCredit(mockConfig, 1000)
+      await useUser(mockConfig, 1000)
 
       expect(ofetch).toHaveBeenCalledWith(
-        'https://api.jsondeepl.com/v1/cli-user-credit',
+        'https://api.jsondeepl.com/v1/cli-user',
         expect.objectContaining({
           method: 'POST',
-          body: JSON.stringify({
+          body: {
             apiKey: 'test-api-key',
             characters: 1000,
-          }),
+          },
         }),
       )
       expect(consola.success).toHaveBeenCalledWith('You have $100 credits available.')
@@ -191,15 +192,17 @@ describe('integration workflow', () => {
       const { ofetch } = await import('ofetch')
       const { consola } = await import('consola')
 
-      const mockCreditResponse = {
-        balance: 5,
+      const mockUserResponse = {
+        user_id: 'user1',
+        isActive: true,
+        credit_balance: 5,
         total: 10,
         after: -5,
       }
 
-      vi.mocked(ofetch).mockResolvedValue(mockCreditResponse)
+      vi.mocked(ofetch).mockResolvedValue(mockUserResponse)
 
-      await useUserCredit(mockConfig, 1000)
+      await useUser(mockConfig, 1000)
 
       expect(consola.error).toHaveBeenCalledWith('You do not have enough credits for this translation.')
       expect(process.exit).toHaveBeenCalledWith(1)
@@ -210,12 +213,18 @@ describe('integration workflow', () => {
       const { consola } = await import('consola')
 
       const configWithPrompt = { ...mockConfig, options: { ...mockConfig.options, prompt: true } }
-      const mockCreditResponse = { balance: 100, total: 10, after: 90 }
+      const mockUserResponse = {
+        user_id: 'user1',
+        isActive: true,
+        credit_balance: 100,
+        total: 10,
+        after: 90,
+      }
 
-      vi.mocked(ofetch).mockResolvedValue(mockCreditResponse)
+      vi.mocked(ofetch).mockResolvedValue(mockUserResponse)
       vi.mocked(consola.prompt).mockResolvedValue(false)
 
-      await useUserCredit(configWithPrompt, 1000)
+      await useUser(configWithPrompt as Config, 1000)
 
       expect(consola.prompt).toHaveBeenCalledWith('Do you want to proceed with the translation?', {
         type: 'confirm',

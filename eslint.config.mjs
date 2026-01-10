@@ -4,6 +4,10 @@ export default antfu({
 // Type of the project. 'lib' for libraries, the default is 'app'
   type: 'lib',
 
+  rules: {
+    '@typescript-eslint/consistent-type-definitions': 'off',
+  },
+
   // Enable stylistic formatting rules
   // stylistic: true,
 

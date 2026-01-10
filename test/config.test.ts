@@ -1,4 +1,4 @@
-import type { ConfigOptions } from '../src/types/common.types.js'
+import type { Config } from '../src/types/common.types.js'
 import * as fs from 'node:fs'
 import { resolve } from 'pathe'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -35,8 +35,8 @@ describe('configuration system', () => {
       expect(defaultConfig).toHaveProperty('source', 'en')
       expect(defaultConfig).toHaveProperty('target')
       expect(defaultConfig).toHaveProperty('langDir', './i18n/locales')
-      expect(defaultConfig).toHaveProperty('apiKey', '')
-      expect(defaultConfig).toHaveProperty('engine', 'deepl')
+      // API key is provided via environment variable at runtime, not in defaultConfig
+      expect(defaultConfig).not.toHaveProperty('apiKey')
       expect(defaultConfig).toHaveProperty('formality', 'prefer_less')
       expect(defaultConfig).toHaveProperty('options')
       expect(defaultConfig.options).toHaveProperty('autoMerge', false)
@@ -80,38 +80,44 @@ describe('configuration system', () => {
     })
 
     it('should validate existing config file', async () => {
-      const mockConfig: ConfigOptions = {
+      const mockConfig: Config = {
         source: 'en',
         target: ['fr', 'es'],
         langDir: './locales',
         apiKey: 'test-key',
-        engine: 'deepl',
         formality: 'prefer_less',
         options: { autoMerge: true, prompt: false },
       }
 
       const { useUser } = await import('../src/utils.js')
 
+      // Provide API key via environment variable as useConfigLoader expects
+      process.env.JSONDEEPL_API_KEY = 'test-key'
+
       vi.mocked(fs.existsSync).mockReturnValue(true)
       vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify(mockConfig))
       vi.mocked(useUser).mockResolvedValue({
-        users: { credit: 100 },
+        apiKey: 'test-key',
+        user_id: 'user1',
+        isActive: true,
+        credit_balance: 100,
+        total: 0,
+        after: 100,
       })
       vi.mocked(resolve).mockImplementation(path => path)
 
       const result = await useConfigLoader()
 
       expect(result).toEqual(mockConfig)
-      expect(useUser).toHaveBeenCalledWith('test-key')
+      expect(useUser).toHaveBeenCalledWith(result, 0)
     })
 
     it('should exit when API key is invalid', async () => {
-      const mockConfig: ConfigOptions = {
+      const mockConfig: Config = {
         source: 'en',
         target: ['fr'],
         langDir: './locales',
         apiKey: 'invalid-key',
-        engine: 'deepl',
         options: { autoMerge: true, prompt: false },
       }
 
@@ -135,12 +141,11 @@ describe('configuration system', () => {
     })
 
     it('should exit when user has no credits', async () => {
-      const mockConfig: ConfigOptions = {
+      const mockConfig: Config = {
         source: 'en',
         target: ['fr'],
         langDir: './locales',
         apiKey: 'valid-key',
-        engine: 'deepl',
         options: { autoMerge: true, prompt: false },
       }
 
@@ -150,7 +155,12 @@ describe('configuration system', () => {
       vi.mocked(fs.existsSync).mockReturnValue(true)
       vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify(mockConfig))
       vi.mocked(useUser).mockResolvedValue({
-        users: { credit: 0 },
+        apiKey: 'test-key',
+        user_id: 'user1',
+        isActive: true,
+        credit_balance: 0,
+        total: 0,
+        after: -1,
       })
       vi.mocked(resolve).mockImplementation(path => path)
 

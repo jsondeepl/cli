@@ -9,7 +9,8 @@ import {
   useExtract,
   useMerging,
   useTranslateJSON,
-  useUserCredit,
+  useUser,
+  validateJsonFileObject,
 } from './utils.ts'
 
 async function main(): Promise<void> {
@@ -21,6 +22,9 @@ async function main(): Promise<void> {
   // Read the JSON file from the source locale
   const sourceData = await parseJsonFile(config.langDir, config.source)
 
+  // validate sourceData
+  await validateJsonFileObject(sourceData)
+
   // extract changes
   const uniqueKeys = await useExtract(config.source, sourceData)
   consola.success('extraction done!')
@@ -31,10 +35,10 @@ async function main(): Promise<void> {
 
   // count characters
   const characterCount = await useCount(uniqueKeys)
-  consola.success(`Total characters to translate: ${characterCount}`)
+  consola.success(`Total characters to translate: ${characterCount} x ${config.target.length} languages`)
 
   // check if the user has enough credits
-  await useUserCredit(config, characterCount * config.target.length)
+  await useUser(config, characterCount * config.target.length)
 
   // 1. we send all the unique keys to the API for translation
   const dateTime = await useTranslateJSON(uniqueKeys, config)

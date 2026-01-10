@@ -1,8 +1,10 @@
 import type {
   AiLangCodes,
-  ConfigOptions,
+  Config,
+  JsonFileObject,
   SourceLanguageCode,
   TargetLanguageCode,
+  UseUser,
 } from './types/common.types.ts'
 import * as fs from 'node:fs'
 import process from 'node:process'
@@ -43,6 +45,25 @@ export async function parseJsonFile(
   return JSON.parse(fileData)
 }
 
+export async function validateJsonFileObject(obj: any): Promise<void> {
+  if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) {
+    consola.error('Invalid JSON file format: Root element must be an object.')
+    process.exit(1)
+  }
+  await checkNoArrays(obj)
+}
+
+async function checkNoArrays(o: any): Promise<void> {
+  for (const key in o) {
+    if (Array.isArray(o[key])) {
+      consola.error(`Invalid JSON file format: Arrays are not allowed (found at key: ${key}).`)
+      process.exit(1)
+    }
+    else if (o[key] && typeof o[key] === 'object') {
+      await checkNoArrays(o[key])
+    }
+  }
+}
 // #endregion 📂 Common Utility Functions
 
 export async function useStateCheck(src_locale: string, sourceData: Record<string, string>): Promise<void> {
@@ -71,12 +92,12 @@ export async function useStateCheck(src_locale: string, sourceData: Record<strin
  * Extracts unique keys from the source data based on the last state of the locale files.
  * @param {string} src_locale - Source locale code.
  * @param {object} sourceData - Source data object.
- * @returns {Promise<Record<string, any>>} - A promise that resolves to an object containing unique keys.
+ * @returns {Promise<JsonFileObject>} - A promise that resolves to an object containing unique keys.
  */
 export async function useExtract(
   src_locale: string,
-  sourceData: Record<string, any>,
-): Promise<Record<string, any>> {
+  sourceData: JsonFileObject,
+): Promise<JsonFileObject> {
   try {
     consola.start(`extracting unique keys from the last state of the source locale...`)
     const lastStateSourcePath = resolve(`jsondeepl/${src_locale}-lock.json`)
@@ -106,10 +127,10 @@ export async function useExtract(
  * @returns {object} - Object containing unique keys from the two input objects.
  */
 export async function extractUniqueKeys(
-  newJson: Record<string, any>,
-  oldJson: Record<string, any>,
-): Promise<Record<string, any>> {
-  const uniqueKeys: Record<string, any> = {}
+  newJson: JsonFileObject,
+  oldJson: JsonFileObject,
+): Promise<JsonFileObject> {
+  const uniqueKeys: JsonFileObject = {}
 
   for (const key in newJson) {
     if (Object.hasOwn(newJson, key)) {
@@ -124,12 +145,12 @@ export async function extractUniqueKeys(
         }
         else if (newJson[key] !== oldJson[key]) {
           // If values are not equal, add to uniqueKeys
-          uniqueKeys[key] = newJson[key]
+          uniqueKeys[key] = newJson[key] as string
         }
       }
       else {
         // If oldJson does not have the key, add it from newJson
-        uniqueKeys[key] = newJson[key]
+        uniqueKeys[key] = newJson[key] as JsonFileObject
       }
     }
   }
@@ -150,7 +171,7 @@ export function formattedNewDate(): string {
 }
 
 // This function counts the number of characters in the object and its nested objects
-export async function useCount(obj: Record<string, any>): Promise<number> {
+export async function useCount(obj: JsonFileObject): Promise<number> {
   let sum = 0
   for (const key in obj) {
     if (typeof obj[key] === 'string') {
@@ -165,15 +186,14 @@ export async function useCount(obj: Record<string, any>): Promise<number> {
 
 // translation function
 export async function useTranslateJSON(
-  uniqueKeys: Record<string, any>,
-  config: ConfigOptions,
+  uniqueKeys: JsonFileObject,
+  config: Config,
 ): Promise<string> {
   const dateTime = formattedNewDate()
   try {
     for (const targetLanguage of config.target) {
       consola.start(`Translating from ${config.source} to ${targetLanguage}...`)
       const translation = await ofetch('https://api.jsondeepl.com/v1/cli', {
-        // const translation = await ofetch('http://localhost:4003/v1/cli', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -200,14 +220,14 @@ export async function useTranslateJSON(
 }
 
 // save Json to a file
-export async function saveJsonToFile(json: Record<string, any>, filePath: string): Promise<void> {
+export async function saveJsonToFile(json: JsonFileObject, filePath: string): Promise<void> {
   await ensureDirectoryExistence(filePath)
   await fs.promises.writeFile(filePath, JSON.stringify(json, null, 2), 'utf8')
   consola.success(`Saved JSON to ${filePath}`)
 }
 
 // create a lock file for the source locale
-export async function createLockFile(source: string, sourceData: Record<string, any>): Promise<void> {
+export async function createLockFile(source: string, sourceData: JsonFileObject): Promise<void> {
   const lockFilePath = resolve(`jsondeepl/${source}-lock.json`)
   const hasLockFile = fs.existsSync(lockFilePath)
   if (!hasLockFile) {
@@ -217,7 +237,7 @@ export async function createLockFile(source: string, sourceData: Record<string, 
 }
 
 // merge the new translations with the last state
-export async function useMerging(config: ConfigOptions, dateTime: string): Promise<void> {
+export async function useMerging(config: Config, dateTime: string): Promise<void> {
   const historyDir = resolve(`jsondeepl/history/${dateTime}`)
   const langDir = resolve(config.langDir)
   consola.info(historyDir)
@@ -236,27 +256,27 @@ export async function useMerging(config: ConfigOptions, dateTime: string): Promi
 /**
  * Merges two JSON data objects, prioritizing new data entries from the source object.
  * Uses deep merging strategy to preserve non-conflicting entries in nested structures.
- * @param {Record<string, any>} target - The target object which will receive properties.
- * @param {Record<string, any>} source - The source object whose properties will be merged into the target.
- * @returns {Record<string, any>} - A new object containing the deeply merged data.
+ * @param {JsonFileObject} target - The target object which will receive properties.
+ * @param {JsonFileObject} source - The source object whose properties will be merged into the target.
+ * @returns {JsonFileObject} - A new object containing the deeply merged data.
  */
 export async function mergeFiles(
-  target: Record<string, any>,
-  source: Record<string, any>,
-): Promise<Record<string, any>> {
+  target: JsonFileObject,
+  source: JsonFileObject,
+): Promise<JsonFileObject> {
   const merged = { ...target }
 
   for (const key of Object.keys(source)) {
     const sourceVal = source[key]
     const targetVal = merged[key]
 
-    if (sourceVal && typeof sourceVal === 'object' && !Array.isArray(sourceVal)) {
+    if (sourceVal && typeof sourceVal === 'object') {
       // Handle nested objects recursively
-      merged[key] = await mergeFiles(targetVal || {}, sourceVal)
+      merged[key] = await mergeFiles(targetVal as JsonFileObject, sourceVal)
     }
     else {
       // For non-object values, prefer source value if it exists
-      merged[key] = sourceVal
+      merged[key] = sourceVal as string
     }
   }
 
@@ -265,13 +285,35 @@ export async function mergeFiles(
 
 /// This function fetches the user data from the API using the provided API key
 /// It returns the user data if successful, or null if there was an error.
-export async function useUser(apiKey: string): Promise<any> {
+export async function useUser(config: Config, characterCount: number): Promise<UseUser | null> {
   try {
     const user = await ofetch('https://api.jsondeepl.com/v1/cli-user', {
-      // const user = await ofetch('http://localhost:4003/v1/cli-user', {
       method: 'POST',
-      body: JSON.stringify({ apiKey }),
+      body: {
+        apiKey: config.apiKey,
+        characters: characterCount,
+      },
     })
+    consola.success(`You have $${user.credit_balance} credits available.`)
+    consola.info(`Total characters: ${characterCount} | Cost: $${user.total.toFixed(3)} | Balance after: $${user.after.toFixed(4)}`)
+
+    if (user.isActive === false) {
+      consola.error('Your subscription is inactive. Please renew your subscription to continue using the service.')
+      process.exit(1)
+    }
+    if (user.after < 0) {
+      consola.error('You do not have enough credits for this translation.')
+      process.exit(1)
+    }
+    if (config.options.prompt) {
+      const agreed = await consola.prompt('Do you want to proceed with the translation?', {
+        type: 'confirm',
+      })
+      if (!agreed) {
+        consola.info('Translation cancelled.')
+        process.exit(0)
+      }
+    }
     return user
   }
   catch (error) {
@@ -280,35 +322,7 @@ export async function useUser(apiKey: string): Promise<any> {
   }
 }
 
-// This function checks if the user has enough credits for the translation
-export async function useUserCredit(config: ConfigOptions, characterCount: number): Promise<void> {
-  const acc = await ofetch('https://api.jsondeepl.com/v1/cli-user-credit', {
-    // const acc = await ofetch('http://localhost:4003/v1/cli-user-credit', {
-    method: 'POST',
-    body: JSON.stringify({ apiKey: config.apiKey, characters: characterCount }),
-  })
-  consola.success(`You have $${acc.balance} credits available.`)
-  consola.info(
-    `Total characters: ${characterCount} | Cost: $${acc.total.toFixed(
-      3,
-    )} | Balance after: $${acc.after.toFixed(3)}`,
-  )
-  if (acc.total > acc.balance) {
-    consola.error('You do not have enough credits for this translation.')
-    process.exit(1)
-  }
-  if (config.options.prompt) {
-    const agreed = await consola.prompt('Do you want to proceed with the translation?', {
-      type: 'confirm',
-    })
-    if (!agreed) {
-      consola.info('Translation cancelled.')
-      process.exit(0)
-    }
-  }
-}
-
-function removeKeysByPath(obj: Record<string, any>, paths: string[]): void {
+export function removeKeysByPath(obj: JsonFileObject, paths: string[]): void {
   for (const path of paths) {
     const parts = path.split('.')
     let current = obj
@@ -329,9 +343,9 @@ function removeKeysByPath(obj: Record<string, any>, paths: string[]): void {
   }
 }
 
-function findKeysToRemove(
-  targetJson: Record<string, any>,
-  sourceJson: Record<string, any>,
+export function findKeysToRemove(
+  targetJson: JsonFileObject,
+  sourceJson: JsonFileObject,
   parentKey: string = '',
 ): string[] {
   const keysToRemove: string[] = []
@@ -355,7 +369,7 @@ function findKeysToRemove(
   return keysToRemove
 }
 
-export async function useCleanup(langDir: string, config: ConfigOptions): Promise<void> {
+export async function useCleanup(langDir: string, config: Config): Promise<void> {
   const sourceJsonData = await parseJsonFile(langDir, config.source)
 
   for (const file of config.target) {

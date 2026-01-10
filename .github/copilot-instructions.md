@@ -18,15 +18,17 @@ The main process follows this sequence:
 
 ### Configuration System (src/config.ts)
 - Auto-creates `jsondeepl/config.json` with `defaultConfig` on first run
-- Validates API keys against JsonDeepL service during startup
-- Checks user credits before proceeding with translations
+- Validates API keys by querying the JsonDeepL user endpoint during startup
+- Calls the user-check helper with the API key and expected character count (e.g. `useUser(apiKey, 0)`) and validates returned fields (`user_id`, `isActive`, `credit_balance`)
+- Exits early when the API key is invalid, the account is inactive, or there are insufficient credits
 - Uses `consola.prompt()` for interactive confirmation when `options.prompt: true`
 
 ### State Management Pattern
 - **Lock files**: `jsondeepl/{source}-lock.json` tracks last translated state
-- **History**: `jsondeepl/history/{timestamp}/{lang}.json` stores each translation job
-- **Extraction logic**: `useExtract()` compares current vs lock file to find changed keys
-- **Merging**: Deep merge preserves existing translations while adding new ones
+- **History**: `jsondeepl/history/{timestamp}/{lang}.json` stores each translation job (timestamp format created via `formattedNewDate()`)
+- **Helpers**: `useStateCheck()` initializes lock/history files when missing and `formattedNewDate()` formats history folder names
+- **Extraction logic**: `useExtract()` (and `extractUniqueKeys()`) compares current vs lock file to find changed keys
+- **Merging**: `useMerging()` and `mergeFiles()` perform a deep merge that preserves non-conflicting entries
 
 ### File Structure Conventions
 ```
@@ -55,10 +57,10 @@ jsondeepl/
 - Show character counts and cost estimates before translation
 
 ### API Integration
-- Base URL: `https://api.jsondeepl.com/v1/cli`
+- Translation endpoint: `https://api.jsondeepl.com/v1/cli` (used by `useTranslateJSON`)
+- User/credits endpoint: `https://api.jsondeepl.com/v1/cli-user` (used by `useUser`)
 - Uses `ofetch` for HTTP requests
-- Handles nested JSON objects recursively
-- Supports both DeepL and AI translation engines
+- Handles nested JSON objects recursively and saves per-language results under `jsondeepl/history/{timestamp}`
 
 ### Language Code Types
 - **Source**: `SourceLanguageCode | AiLangCodes` (includes 'en', 'pt')

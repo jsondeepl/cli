@@ -1,4 +1,4 @@
-import type { ConfigOptions } from './types/common.types.ts'
+import type { Config, ConfigOptions } from './types/common.types.ts'
 import * as fs from 'node:fs'
 import process from 'node:process'
 import { consola } from 'consola'
@@ -42,8 +42,6 @@ export const defaultConfig: ConfigOptions = {
     'zh',
   ],
   langDir: './i18n/locales',
-  apiKey: '',
-  engine: 'deepl',
   formality: 'prefer_less',
   options: {
     autoMerge: false,
@@ -52,11 +50,10 @@ export const defaultConfig: ConfigOptions = {
 }
 
 // Load and validate configuration
-export async function useConfigLoader(): Promise<ConfigOptions> {
+export async function useConfigLoader(): Promise<Config> {
   consola.info('Loading configuration...')
   const configPath = resolve('jsondeepl/config.json')
   const historyDirPath = resolve('jsondeepl/history')
-
   if (!fs.existsSync(configPath)) {
     consola.warn('Configuration file not found: jsondeepl/config.json')
     await consola.prompt('Would you like to create a default configuration file?', {
@@ -75,8 +72,13 @@ export async function useConfigLoader(): Promise<ConfigOptions> {
     await ensureDirectoryExistence(historyDirPath)
   }
 
+  const apiKey = process.env.JSONDEEPL_API_KEY
+  if (!apiKey) {
+    consola.error('JSONDEEPL_API_KEY environment variable is not set.')
+    process.exit(1)
+  }
   const configData = fs.readFileSync(configPath, 'utf8')
-  const config = JSON.parse(configData)
+  const config: Config = { ...JSON.parse(configData), apiKey }
   const isValid = await validateConfig(config)
   if (!isValid) {
     consola.error(
@@ -84,22 +86,26 @@ export async function useConfigLoader(): Promise<ConfigOptions> {
     )
     process.exit(1)
   }
-  const user = await useUser(config.apiKey)
-  if (!user) {
+  const user = await useUser(config, 0)
+  if (!user || !user.user_id) {
     consola.error('Invalid API key. Please check your jsondeepl/config.json file.')
     process.exit(1)
   }
-  if (user.users.credit <= 0) {
+  if (!user.isActive) {
+    consola.error('Your account is inactive. Please contact support to reactivate your account.')
+    process.exit(1)
+  }
+  if (user.credit_balance <= 0) {
     consola.error('You have no credits available. Please add credits to your account.')
     process.exit(1)
   }
 
-  consola.info(`You have $${user.users.credit} credits available.`)
+  consola.info(`You have $${user.credit_balance} credits available.`)
   consola.success('Configuration loaded successfully.')
-  return config as ConfigOptions
+  return config as Config
 }
 
-async function validateConfig(config: ConfigOptions): Promise<boolean> {
+async function validateConfig(config: Config): Promise<boolean> {
   if (!config.source) {
     consola.error('Configuration is missing the source language.')
   }
@@ -112,13 +118,10 @@ async function validateConfig(config: ConfigOptions): Promise<boolean> {
   if (!config.apiKey) {
     consola.error('Configuration is missing the JsonDeepL API key.')
   }
-  if (!config.engine) {
-    consola.error('Configuration is missing the translation engine.')
-  }
   if (!config.options) {
     consola.warn('Configuration is missing the options object. Using default options.')
   }
-  if (!config.source || !config.target || !config.langDir || !config.apiKey || !config.engine) {
+  if (!config.source || !config.target || !config.langDir || !config.apiKey) {
     return false
   }
   return true
