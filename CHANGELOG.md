@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.0.8
+
+[compare changes](https://github.com/jsondeepl/cli/compare/v0.0.7...v0.0.8)
+
+### 🚀 Enhancements
+
+- 🚀 Enhance configuration and user validation logic ([c75fb49](https://github.com/jsondeepl/cli/commit/c75fb49))
+
+### ❤️ Contributors
+
+- Kian Salout ([@Kiansa](https://github.com/Kiansa))
+
 ## v0.0.7
 
 [compare changes](https://github.com/jsondeepl/cli/compare/v0.0.6...v0.0.7)
