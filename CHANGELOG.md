@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.0.9
+
+[compare changes](https://github.com/jsondeepl/cli/compare/v0.0.8...v0.0.9)
+
+### 🩹 Fixes
+
+- Load environment variables from .env file ([42d7710](https://github.com/jsondeepl/cli/commit/42d7710))
+
+### ❤️ Contributors
+
+- Kian Salout ([@Kiansa](https://github.com/Kiansa))
+
 ## v0.0.8
 
 [compare changes](https://github.com/jsondeepl/cli/compare/v0.0.7...v0.0.8)
