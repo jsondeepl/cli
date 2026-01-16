@@ -138,7 +138,7 @@ describe('utils coverage additions', () => {
       apiKey: 'k',
       engine: 'deepl',
       formality: 'prefer_less',
-      options: { autoMerge: true, prompt: false },
+      options: { prompt: false },
     } as any
 
     await (await import('../src/utils.js')).useCleanup('./locales', mockConfig)

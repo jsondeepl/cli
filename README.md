@@ -34,7 +34,6 @@ You will need Your [JsonDeepL API key](https://jsondeepl.com/dashboard/api-keys)
   "formality": "prefer_less",
   "langDir": "./i18n/locales",
   "options": {
-    "autoMerge": true,
     "prompt": true
   },
   "source": "en",

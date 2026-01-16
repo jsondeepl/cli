@@ -89,6 +89,62 @@ export async function useStateCheck(src_locale: string, sourceData: Record<strin
 }
 
 /**
+ * Checks which target languages are missing and returns them.
+ * @param {string} langDir - Path to the directory containing the language files.
+ * @param {string[]} targetLanguages - Array of target language codes.
+ * @returns {Promise<string[]>} - Array of missing target language codes.
+ */
+export async function detectMissingTargetLanguages(
+  langDir: string,
+  targetLanguages: string[],
+): Promise<string[]> {
+  const missingLanguages: string[] = []
+
+  for (const lang of targetLanguages) {
+    const filePath = resolve(langDir, `${lang}.json`)
+    if (!fs.existsSync(filePath)) {
+      missingLanguages.push(lang)
+    }
+  }
+
+  return missingLanguages
+}
+
+/**
+ * Creates per-language translation payloads based on whether the language needs full or partial translation.
+ * @param {string} langDir - Path to the directory containing the language files.
+ * @param {SourceLanguageCode} src_locale - Source locale code.
+ * @param {JsonFileObject} sourceData - Source data object.
+ * @param {JsonFileObject} extractedKeys - Extracted unique keys from source.
+ * @param {TargetLanguageCode[]} targetLanguages - Array of target language codes.
+ * @returns {Promise<Map<string, JsonFileObject>>} - Map of language code to data that needs translation.
+ */
+export async function createPerLanguagePayloads(
+  langDir: string,
+  src_locale: SourceLanguageCode,
+  sourceData: JsonFileObject,
+  extractedKeys: JsonFileObject,
+  targetLanguages: TargetLanguageCode[],
+): Promise<Map<string, JsonFileObject>> {
+  const payloads = new Map<string, JsonFileObject>()
+  const missingLanguages = await detectMissingTargetLanguages(langDir, targetLanguages)
+
+  for (const lang of targetLanguages) {
+    if (missingLanguages.includes(lang)) {
+      // New language - translate everything
+      consola.info(`Detected new target language: ${lang} - will translate all keys`)
+      payloads.set(lang, sourceData)
+    }
+    else {
+      // Existing language - translate only changed keys
+      payloads.set(lang, extractedKeys)
+    }
+  }
+
+  return payloads
+}
+
+/**
  * Extracts unique keys from the source data based on the last state of the locale files.
  * @param {string} src_locale - Source locale code.
  * @param {object} sourceData - Source data object.
@@ -184,14 +240,39 @@ export async function useCount(obj: JsonFileObject): Promise<number> {
   return sum
 }
 
-// translation function
+/**
+ * Counts total characters across all per-language payloads.
+ * @param {Map<string, JsonFileObject>} perLanguagePayloads - Map of language code to data.
+ * @returns {Promise<number>} - Total character count across all languages.
+ */
+export async function useCountPerLanguage(perLanguagePayloads: Map<string, JsonFileObject>): Promise<number> {
+  let totalCharacters = 0
+
+  for (const [lang, data] of perLanguagePayloads) {
+    const charCount = await useCount(data)
+    consola.info(`${lang}: ${charCount} characters`)
+    totalCharacters += charCount
+  }
+
+  return totalCharacters
+}
+
+// translation function with per-language payload support
 export async function useTranslateJSON(
-  uniqueKeys: JsonFileObject,
+  perLanguagePayloads: Map<string, JsonFileObject>,
   config: Config,
 ): Promise<string> {
   const dateTime = formattedNewDate()
   try {
     for (const targetLanguage of config.target) {
+      const jsonToTranslate = perLanguagePayloads.get(targetLanguage) || {}
+
+      // Skip if nothing to translate for this language
+      if (Object.keys(jsonToTranslate).length === 0) {
+        consola.warn(`No keys to translate for ${targetLanguage}, skipping...`)
+        continue
+      }
+
       consola.start(`Translating from ${config.source} to ${targetLanguage}...`)
       const translation = await ofetch('https://api.jsondeepl.com/v1/cli', {
         method: 'POST',
@@ -199,7 +280,7 @@ export async function useTranslateJSON(
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          json: uniqueKeys,
+          json: jsonToTranslate,
           src: config.source,
           to: targetLanguage,
           formality: config.formality,

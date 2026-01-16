@@ -35,7 +35,6 @@ describe('integration workflow', () => {
     apiKey: 'test-api-key',
     formality: 'prefer_less',
     options: {
-      autoMerge: true,
       prompt: false,
     },
   }
@@ -87,11 +86,16 @@ describe('integration workflow', () => {
       const { ofetch } = await import('ofetch')
       const uniqueKeys = { newKey: 'Hello world' }
 
+      // Create per-language payloads Map
+      const perLanguagePayloads = new Map<string, any>()
+      perLanguagePayloads.set('fr', uniqueKeys)
+      perLanguagePayloads.set('es', uniqueKeys)
+
       const mockTranslation = { newKey: 'Bonjour le monde' }
       vi.mocked(ofetch).mockResolvedValue(mockTranslation)
       vi.mocked(resolve).mockImplementation(path => path)
 
-      const result = await useTranslateJSON(uniqueKeys, mockConfig)
+      const result = await useTranslateJSON(perLanguagePayloads, mockConfig)
 
       expect(ofetch).toHaveBeenCalledTimes(2) // fr and es
       expect(ofetch).toHaveBeenCalledWith(
@@ -115,9 +119,14 @@ describe('integration workflow', () => {
       const { consola } = await import('consola')
       const uniqueKeys = { key: 'value' }
 
+      // Create per-language payloads Map
+      const perLanguagePayloads = new Map<string, any>()
+      perLanguagePayloads.set('fr', uniqueKeys)
+      perLanguagePayloads.set('es', uniqueKeys)
+
       vi.mocked(ofetch).mockRejectedValue(new Error('API Error'))
 
-      await useTranslateJSON(uniqueKeys, mockConfig)
+      await useTranslateJSON(perLanguagePayloads, mockConfig)
 
       expect(consola.error).toHaveBeenCalledWith('Error during translation:', expect.any(Error))
       expect(process.exit).toHaveBeenCalledWith(1)

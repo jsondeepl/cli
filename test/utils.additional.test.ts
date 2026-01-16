@@ -1,7 +1,7 @@
 import * as fs from 'node:fs'
 import { resolve } from 'pathe'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createLockFile, useCleanup, useStateCheck, validateJsonFileObject } from '../src/utils.js'
+import { createLockFile, createPerLanguagePayloads, detectMissingTargetLanguages, useCleanup, useCountPerLanguage, useStateCheck, validateJsonFileObject } from '../src/utils.js'
 
 vi.mock('node:fs')
 vi.mock('pathe')
@@ -69,7 +69,7 @@ describe('utils additional coverage', () => {
         apiKey: 'k',
         engine: 'deepl',
         formality: 'prefer_less',
-        options: { autoMerge: true, prompt: false },
+        options: { prompt: false },
       } as any
 
       await useCleanup('./locales', mockConfig)
@@ -90,6 +90,65 @@ describe('utils additional coverage', () => {
       await createLockFile('en', { hello: 'world' } as any)
 
       expect(fs.writeFileSync).toHaveBeenCalled()
+    })
+  })
+
+  describe('detectMissingTargetLanguages', () => {
+    it('detects missing target language files', async () => {
+      vi.mocked(resolve).mockImplementation((dir: string, file: string) => `${dir}/${file}`)
+      vi.mocked(fs.existsSync).mockImplementation((path: any) => {
+        // fr.json exists, es.json doesn't
+        return path.includes('fr.json')
+      })
+
+      const missing = await detectMissingTargetLanguages('./locales', ['fr', 'es', 'de'])
+
+      expect(missing).toEqual(['es', 'de'])
+    })
+
+    it('returns empty array when all languages exist', async () => {
+      vi.mocked(resolve).mockImplementation((dir: string, file: string) => `${dir}/${file}`)
+      vi.mocked(fs.existsSync).mockReturnValue(true)
+
+      const missing = await detectMissingTargetLanguages('./locales', ['fr', 'es'])
+
+      expect(missing).toEqual([])
+    })
+  })
+
+  describe('createPerLanguagePayloads', () => {
+    it('assigns full source data to new languages and extracted keys to existing', async () => {
+      const sourceData = { key1: 'value1', key2: 'value2' }
+      const extractedKeys = { key1: 'updated' }
+
+      vi.mocked(resolve).mockImplementation((dir: string, file: string) => `${dir}/${file}`)
+      vi.mocked(fs.existsSync).mockImplementation((path: any) => {
+        // Only fr.json exists
+        return path.includes('fr.json')
+      })
+
+      const payloads = await createPerLanguagePayloads(
+        './locales',
+        'en',
+        sourceData,
+        extractedKeys,
+        ['fr', 'es'],
+      )
+
+      expect(payloads.get('fr')).toEqual(extractedKeys) // existing language gets extracted keys
+      expect(payloads.get('es')).toEqual(sourceData) // new language gets full source
+    })
+  })
+
+  describe('useCountPerLanguage', () => {
+    it('counts total characters across all language payloads', async () => {
+      const payloads = new Map()
+      payloads.set('fr', { key1: 'hello', key2: 'world' }) // 10 chars
+      payloads.set('es', { key1: 'hi' }) // 2 chars
+
+      const total = await useCountPerLanguage(payloads)
+
+      expect(total).toBe(12)
     })
   })
 })

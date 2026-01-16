@@ -4,7 +4,6 @@ export type ConfigOptions = {
   langDir: string
   formality?: 'prefer_more' | 'prefer_less'
   options: {
-    autoMerge: boolean
     prompt: boolean
   }
 }

@@ -63,8 +63,8 @@ jsondeepl/
 - Handles nested JSON objects recursively and saves per-language results under `jsondeepl/history/{timestamp}`
 
 ### Language Code Types
-- **Source**: `SourceLanguageCode | AiLangCodes` (includes 'en', 'pt')
-- **Target**: `TargetLanguageCode[] | AiLangCodes[]` (includes regional variants like 'en-GB', 'pt-BR')
+- **Source**: `SourceLanguageCode` (includes 'en', 'pt')
+- **Target**: `TargetLanguageCode[]` (includes regional variants like 'en-GB', 'pt-BR')
 - **AI engine**: Supports extensive `AiLangCodes` list with regional variants
 
 ## Essential Commands

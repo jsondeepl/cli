@@ -48,7 +48,6 @@ export const defaultConfig: ConfigOptions = {
   langDir: './i18n/locales',
   formality: 'prefer_less',
   options: {
-    autoMerge: false,
     prompt: true,
   },
 }

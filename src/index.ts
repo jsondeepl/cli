@@ -3,9 +3,10 @@ import { consola } from 'consola'
 import { useConfigLoader } from './config.ts'
 import {
   createLockFile,
+  createPerLanguagePayloads,
   parseJsonFile,
   useCleanup,
-  useCount,
+  useCountPerLanguage,
   useExtract,
   useMerging,
   useTranslateJSON,
@@ -25,23 +26,42 @@ async function main(): Promise<void> {
   // validate sourceData
   await validateJsonFileObject(sourceData)
 
-  // extract changes
+  // extract changes from lock file (only changed keys)
   const uniqueKeys = await useExtract(config.source, sourceData)
   consola.success('extraction done!')
-  if (Object.keys(uniqueKeys).length === 0) {
+
+  // Create per-language payloads (new languages get full source, existing get only changes)
+  const perLanguagePayloads = await createPerLanguagePayloads(
+    config.langDir,
+    config.source,
+    sourceData,
+    uniqueKeys,
+    config.target,
+  )
+
+  // Check if there's anything to translate
+  let hasWorkToDo = false
+  for (const [, data] of perLanguagePayloads) {
+    if (Object.keys(data).length > 0) {
+      hasWorkToDo = true
+      break
+    }
+  }
+
+  if (!hasWorkToDo) {
     consola.success('All keys are already translated.')
     return
   }
 
-  // count characters
-  const characterCount = await useCount(uniqueKeys)
-  consola.success(`Total characters to translate: ${characterCount} x ${config.target.length} languages`)
+  // count characters per language
+  const totalCharacters = await useCountPerLanguage(perLanguagePayloads)
+  consola.success(`Total characters to translate: ${totalCharacters}`)
 
   // check if the user has enough credits
-  await useUser(config, characterCount * config.target.length)
+  await useUser(config, totalCharacters)
 
-  // 1. we send all the unique keys to the API for translation
-  const dateTime = await useTranslateJSON(uniqueKeys, config)
+  // 1. we send the per-language payloads to the API for translation
+  const dateTime = await useTranslateJSON(perLanguagePayloads, config)
 
   // 2. we create a lock file for the source locale
   await createLockFile(config.source, sourceData)

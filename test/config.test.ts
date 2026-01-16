@@ -39,7 +39,6 @@ describe('configuration system', () => {
       expect(defaultConfig).not.toHaveProperty('apiKey')
       expect(defaultConfig).toHaveProperty('formality', 'prefer_less')
       expect(defaultConfig).toHaveProperty('options')
-      expect(defaultConfig.options).toHaveProperty('autoMerge', false)
       expect(defaultConfig.options).toHaveProperty('prompt', true)
     })
 
@@ -86,7 +85,7 @@ describe('configuration system', () => {
         langDir: './locales',
         apiKey: 'test-key',
         formality: 'prefer_less',
-        options: { autoMerge: true, prompt: false },
+        options: { prompt: false },
       }
 
       const { useUser } = await import('../src/utils.js')
@@ -118,7 +117,7 @@ describe('configuration system', () => {
         target: ['fr'],
         langDir: './locales',
         apiKey: 'invalid-key',
-        options: { autoMerge: true, prompt: false },
+        options: { prompt: false },
       }
 
       const { useUser } = await import('../src/utils.js')
@@ -146,7 +145,7 @@ describe('configuration system', () => {
         target: ['fr'],
         langDir: './locales',
         apiKey: 'valid-key',
-        options: { autoMerge: true, prompt: false },
+        options: { prompt: false },
       }
 
       const { useUser } = await import('../src/utils.js')
