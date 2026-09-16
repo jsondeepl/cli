@@ -413,9 +413,6 @@ async function translateStrings(
   formality: 'prefer_less' | 'prefer_more',
   apiKey: string,
 ): Promise<string[]> {
-  if (texts.length === 0)
-    return []
-
   const encodedTexts = texts.map(encodePlaceholders)
   let attempt = 0
   const maxAttempts = 5

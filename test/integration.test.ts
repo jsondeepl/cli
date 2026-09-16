@@ -3,6 +3,7 @@ import * as fs from 'node:fs'
 import { resolve } from 'pathe'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  translateJSON,
   useCleanup,
   useDeeplUsage,
   useExtract,
@@ -119,19 +120,114 @@ describe('integration workflow', () => {
 
     it('should handle DeepL errors gracefully', async () => {
       const { consola } = await import('consola')
-      const uniqueKeys = { key: 'value' }
-
-      // Create per-language payloads Map
+      // Single language: with process.exit mocked as a no-op, a second concurrent
+      // language's already-scheduled request would otherwise keep running in the
+      // background after this test returns and land during a later test.
       const perLanguagePayloads = new Map<string, any>()
-      perLanguagePayloads.set('fr', uniqueKeys)
-      perLanguagePayloads.set('es', uniqueKeys)
+      perLanguagePayloads.set('fr', { key: 'value' })
 
       mockTranslateText.mockRejectedValue(new Error('Translation Error'))
 
-      await useTranslateJSON(perLanguagePayloads, mockConfig)
+      await useTranslateJSON(perLanguagePayloads, { ...mockConfig, target: ['fr'] })
 
       expect(consola.error).toHaveBeenCalledWith('Error during translation:', expect.any(Error))
       expect(process.exit).toHaveBeenCalledWith(1)
+    })
+
+    it('does not retry on AuthorizationError and reports an invalid API key', async () => {
+      const { consola } = await import('consola')
+      const { AuthorizationError } = await import('deepl-node')
+      const perLanguagePayloads = new Map<string, any>()
+      perLanguagePayloads.set('fr', { key: 'value' })
+
+      mockTranslateText.mockRejectedValue(new AuthorizationError('bad key'))
+
+      await useTranslateJSON(perLanguagePayloads, { ...mockConfig, target: ['fr'] })
+
+      expect(mockTranslateText).toHaveBeenCalledTimes(1)
+      expect(consola.error).toHaveBeenCalledWith('Invalid DeepL API key.')
+      expect(process.exit).toHaveBeenCalledWith(1)
+    })
+
+    it('does not retry on QuotaExceededError and reports the exhausted quota', async () => {
+      const { consola } = await import('consola')
+      const { QuotaExceededError } = await import('deepl-node')
+      const perLanguagePayloads = new Map<string, any>()
+      perLanguagePayloads.set('fr', { key: 'value' })
+
+      mockTranslateText.mockRejectedValue(new QuotaExceededError('no quota'))
+
+      await useTranslateJSON(perLanguagePayloads, { ...mockConfig, target: ['fr'] })
+
+      expect(mockTranslateText).toHaveBeenCalledTimes(1)
+      expect(consola.error).toHaveBeenCalledWith('Your DeepL account has run out of translation quota.')
+      expect(process.exit).toHaveBeenCalledWith(1)
+    })
+
+    it('retries a retryable connection error and succeeds on the next attempt', async () => {
+      const { ConnectionError } = await import('deepl-node')
+      const perLanguagePayloads = new Map<string, any>()
+      perLanguagePayloads.set('fr', { key: 'value' })
+
+      mockTranslateText
+        .mockRejectedValueOnce(new ConnectionError('temporary'))
+        .mockResolvedValueOnce([{ text: 'Bonjour' }])
+
+      const result = await useTranslateJSON(perLanguagePayloads, { ...mockConfig, target: ['fr'] })
+
+      expect(mockTranslateText).toHaveBeenCalledTimes(2)
+      expect(result).toMatch(/^\d+_D[\d_]+_T[\d_]+(_[AP]M)?$/)
+    }, 10000)
+
+    it('skips languages with nothing to translate', async () => {
+      const { consola } = await import('consola')
+      const perLanguagePayloads = new Map<string, any>()
+      perLanguagePayloads.set('fr', {})
+      perLanguagePayloads.set('es', { key: 'value' })
+
+      mockTranslateText.mockResolvedValue([{ text: 'valor' }])
+
+      await useTranslateJSON(perLanguagePayloads, { ...mockConfig, target: ['fr', 'es'] })
+
+      expect(consola.warn).toHaveBeenCalledWith('No keys to translate for fr, skipping...')
+      expect(mockTranslateText).toHaveBeenCalledTimes(1)
+      expect(mockTranslateText).toHaveBeenCalledWith(['value'], 'en', 'es', expect.anything())
+    })
+
+    it('defaults formality to prefer_less when not set in config', async () => {
+      const perLanguagePayloads = new Map<string, any>()
+      perLanguagePayloads.set('fr', { key: 'value' })
+
+      mockTranslateText.mockResolvedValue([{ text: 'valeur' }])
+
+      const { formality: _formality, ...configWithoutFormality } = mockConfig
+      await useTranslateJSON(perLanguagePayloads, { ...configWithoutFormality, target: ['fr'] } as Config)
+
+      expect(mockTranslateText).toHaveBeenCalledWith(['value'], 'en', 'fr', expect.objectContaining({ formality: 'prefer_less' }))
+    })
+  })
+
+  describe('translateJSON', () => {
+    it('translates nested objects, preserving structure and empty objects', async () => {
+      mockTranslateText.mockResolvedValue([{ text: 'A' }, { text: 'B' }])
+
+      const result = await translateJSON(
+        { top: 'x', nested: { child: 'y' }, empty: {} },
+        'en',
+        'fr',
+        'prefer_less',
+        'test-api-key',
+      )
+
+      expect(mockTranslateText).toHaveBeenCalledWith(['x', 'y'], 'en', 'fr', expect.objectContaining({ formality: 'prefer_less' }))
+      expect(result).toEqual({ top: 'A', nested: { child: 'B' }, empty: {} })
+    })
+
+    it('returns non-object input as-is without calling DeepL', async () => {
+      const result = await translateJSON(null as any, 'en', 'fr', 'prefer_less', 'test-api-key')
+
+      expect(result).toBeNull()
+      expect(mockTranslateText).not.toHaveBeenCalled()
     })
   })
 
