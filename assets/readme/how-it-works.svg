@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="1200" height="200" viewBox="0 0 1200 200"
+     role="img" aria-labelledby="hiw-title hiw-desc">
+  <title id="hiw-title">How JsonDeepL CLI processes a run</title>
+  <desc id="hiw-desc">Pipeline diagram: source.json is diffed against the lock file, translated through DeepL in batched concurrent requests, then merged and cleaned into each target locale file.</desc>
+
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#4b5060"/>
+    </marker>
+  </defs>
+
+  <rect width="1200" height="200" rx="20" fill="#0b0c10"/>
+  <rect x="0.5" y="0.5" width="1199" height="199" rx="19.5" fill="none" stroke="#1c1f2c"/>
+
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
+
+    <!-- connectors -->
+    <g stroke="#4b5060" stroke-width="2" marker-end="url(#arrow)">
+      <line x1="250" y1="100" x2="286" y2="100"/>
+      <line x1="470" y1="100" x2="506" y2="100"/>
+      <line x1="690" y1="100" x2="726" y2="100"/>
+      <line x1="910" y1="100" x2="946" y2="100"/>
+    </g>
+
+    <!-- node 1: source -->
+    <g transform="translate(70 55)">
+      <rect width="180" height="90" rx="12" fill="#141620" stroke="#2a2d3d"/>
+      <text x="90" y="40" text-anchor="middle" font-size="22" font-weight="600" fill="#f5f5f7">source.json</text>
+      <text x="90" y="64" text-anchor="middle" font-size="15" fill="#8b8fa8" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">your locale file</text>
+    </g>
+
+    <!-- node 2: diff -->
+    <g transform="translate(290 55)">
+      <rect width="180" height="90" rx="12" fill="#141620" stroke="#2a2d3d"/>
+      <text x="90" y="38" text-anchor="middle" font-size="22" font-weight="600" fill="#f5f5f7">diff</text>
+      <text x="90" y="62" text-anchor="middle" font-size="15" fill="#8b8fa8" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">vs lock file</text>
+      <text x="90" y="80" text-anchor="middle" font-size="14" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"><tspan fill="#34d399">+changed</tspan><tspan fill="#6b7086"> </tspan><tspan fill="#e2585f">-stale</tspan></text>
+    </g>
+
+    <!-- node 3: DeepL -->
+    <g transform="translate(510 55)">
+      <rect width="180" height="90" rx="12" fill="#141620" stroke="#2a2d3d"/>
+      <text x="90" y="40" text-anchor="middle" font-size="22" font-weight="600" fill="#f5f5f7">DeepL</text>
+      <text x="90" y="64" text-anchor="middle" font-size="13" fill="#8b8fa8" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">batched · concurrent</text>
+    </g>
+
+    <!-- node 4: merge -->
+    <g transform="translate(730 55)">
+      <rect width="180" height="90" rx="12" fill="#141620" stroke="#2a2d3d"/>
+      <text x="90" y="40" text-anchor="middle" font-size="22" font-weight="600" fill="#f5f5f7">merge</text>
+      <text x="90" y="64" text-anchor="middle" font-size="15" fill="#8b8fa8" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">+ cleanup</text>
+    </g>
+
+    <!-- node 5: locales -->
+    <g transform="translate(950 55)">
+      <rect width="180" height="90" rx="12" fill="#141620" stroke="#2a2d3d"/>
+      <text x="90" y="40" text-anchor="middle" font-size="22" font-weight="600" fill="#f5f5f7">locales</text>
+      <text x="90" y="64" text-anchor="middle" font-size="15" fill="#8b8fa8" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">fr · es · de …</text>
+    </g>
+  </g>
+</svg>

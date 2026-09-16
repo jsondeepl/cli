@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="1200" height="380" viewBox="0 0 1200 380"
+     role="img" aria-labelledby="hero-title hero-desc">
+  <title id="hero-title">JsonDeepL CLI</title>
+  <desc id="hero-desc">Translate JSON i18n files with DeepL, using your own API key. A terminal preview shows the CLI detecting a new target language and translating only what changed.</desc>
+
+  <defs>
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b0c10"/>
+      <stop offset="1" stop-color="#101220"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="380" rx="28" fill="url(#bgGrad)"/>
+  <rect x="0.5" y="0.5" width="1199" height="379" rx="27.5" fill="none" stroke="#1c1f2c" stroke-width="1"/>
+
+  <!-- Left: identity -->
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif">
+    <text x="64" y="76" font-family="ui-monospace, SFMono-Regular, Menlo, monospace"
+          font-size="18" letter-spacing="2" fill="#8f7ef5" font-weight="600">CLI · JSON I18N TRANSLATION</text>
+
+    <text x="64" y="146" font-size="58" font-weight="700" fill="#f5f5f7">JsonDeepL CLI</text>
+
+    <text x="64" y="190" font-size="22" fill="#a9adc4">Translate JSON i18n files with DeepL.</text>
+    <text x="64" y="220" font-size="22" fill="#a9adc4">Bring your own API key — no backend, no accounts.</text>
+
+    <!-- chips -->
+    <g font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="17">
+      <rect x="64" y="248" width="290" height="40" rx="10" fill="#141620" stroke="#2a2d3d"/>
+      <text x="80" y="273" fill="#d7d9ea">npm i -g @jsondeepl/cli</text>
+
+      <rect x="366" y="248" width="94" height="40" rx="10" fill="#141620" stroke="#2a2d3d"/>
+      <text x="382" y="273" fill="#8fe3b0">MIT</text>
+    </g>
+
+    <text x="64" y="330" font-size="16" fill="#6b7086" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">translates only what changed, safely rate-limited</text>
+  </g>
+
+  <!-- Right: terminal proof -->
+  <g>
+    <rect x="676" y="40" width="468" height="300" rx="14" fill="#12141c" stroke="#242737"/>
+    <!-- title bar -->
+    <rect x="676" y="40" width="468" height="34" rx="14" fill="#171a24"/>
+    <rect x="676" y="60" width="468" height="14" fill="#171a24"/>
+    <circle cx="700" cy="57" r="6" fill="#3a3d4d"/>
+    <circle cx="720" cy="57" r="6" fill="#3a3d4d"/>
+    <circle cx="740" cy="57" r="6" fill="#3a3d4d"/>
+    <text x="908" y="61" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="14" fill="#565b6e" text-anchor="middle">jsondeepl</text>
+
+    <g font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="19">
+      <text x="700" y="112"><tspan fill="#8f7ef5">$</tspan><tspan fill="#e6e7f2"> jsondeepl</tspan></text>
+      <text x="700" y="145" fill="#c7c9db" font-size="18">new target language: de</text>
+      <text x="716" y="175" fill="#34d399" font-size="18">→ translating all keys</text>
+      <text x="700" y="212" fill="#565b6e" font-size="18">fr   0 chars       (same)</text>
+      <text x="700" y="239" fill="#565b6e" font-size="18">es   0 chars       (same)</text>
+      <text x="700" y="266" fill="#34d399" font-size="18">de   5,000 chars   (new)</text>
+      <text x="700" y="303"><tspan fill="#34d399">✔</tspan><tspan fill="#c7c9db"> 3 locales merged</tspan></text>
+    </g>
+  </g>
+</svg>
