@@ -3,9 +3,21 @@ import { resolve } from 'pathe'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as utils from '../src/utils.js'
 
+const { mockGetUsage } = vi.hoisted(() => ({
+  mockGetUsage: vi.fn(),
+}))
+
 vi.mock('node:fs')
 vi.mock('pathe')
-vi.mock('ofetch', () => ({ ofetch: vi.fn() }))
+vi.mock('deepl-node', () => ({
+  Translator: class {
+    getUsage = mockGetUsage
+  },
+  AuthorizationError: class AuthorizationError extends Error {},
+  QuotaExceededError: class QuotaExceededError extends Error {},
+  TooManyRequestsError: class TooManyRequestsError extends Error {},
+  ConnectionError: class ConnectionError extends Error {},
+}))
 vi.mock('consola', () => ({
   consola: {
     start: vi.fn(),
@@ -150,31 +162,28 @@ describe('utils coverage additions', () => {
     )
   })
 
-  it('useUser exits when subscription is inactive', async () => {
+  it('validateDeeplApiKey exits when the key is invalid', async () => {
     vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
-    const { ofetch } = await import('ofetch')
+    const { AuthorizationError } = await import('deepl-node')
     const { consola } = await import('consola')
 
-    const mockUser = { apiKey: 'k', user_id: 'u', isActive: false, credit_balance: 10, total: 0, after: 10 }
-    vi.mocked(ofetch).mockResolvedValue(mockUser)
+    mockGetUsage.mockRejectedValue(new AuthorizationError('invalid'))
 
-    const cfg = { apiKey: 'k', options: { prompt: false } } as any
-    await utils.useUser(cfg, 10)
+    await utils.validateDeeplApiKey('bad-key')
 
-    expect(consola.error).toHaveBeenCalledWith('Your subscription is inactive. Please renew your subscription to continue using the service.')
+    expect(consola.error).toHaveBeenCalledWith('Invalid DeepL API key. Get one at https://www.deepl.com/en/your-account/keys')
     expect(process.exit).toHaveBeenCalledWith(1)
   })
 
-  it('useUser returns null when ofetch errors', async () => {
-    const { ofetch } = await import('ofetch')
+  it('validateDeeplApiKey exits when DeepL cannot be reached', async () => {
+    vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
     const { consola } = await import('consola')
 
-    vi.mocked(ofetch).mockRejectedValue(new Error('network'))
+    mockGetUsage.mockRejectedValue(new Error('network'))
 
-    const cfg = { apiKey: 'k', options: { prompt: false } } as any
-    const res = await utils.useUser(cfg, 10)
+    await utils.validateDeeplApiKey('k')
 
-    expect(consola.error).toHaveBeenCalledWith('Error fetching user data:', expect.any(Error))
-    expect(res).toBeNull()
+    expect(consola.error).toHaveBeenCalledWith('Could not reach DeepL to validate your API key:', expect.any(Error))
+    expect(process.exit).toHaveBeenCalledWith(1)
   })
 })

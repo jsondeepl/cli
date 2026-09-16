@@ -4,17 +4,29 @@ import { resolve } from 'pathe'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   useCleanup,
+  useDeeplUsage,
   useExtract,
   useMerging,
   useTranslateJSON,
-  useUser,
 } from '../src/utils.js'
+
+const { mockTranslateText, mockGetUsage } = vi.hoisted(() => ({
+  mockTranslateText: vi.fn(),
+  mockGetUsage: vi.fn(),
+}))
 
 // Mock external dependencies
 vi.mock('node:fs')
 vi.mock('pathe')
-vi.mock('ofetch', () => ({
-  ofetch: vi.fn(),
+vi.mock('deepl-node', () => ({
+  Translator: class {
+    translateText = mockTranslateText
+    getUsage = mockGetUsage
+  },
+  AuthorizationError: class AuthorizationError extends Error {},
+  QuotaExceededError: class QuotaExceededError extends Error {},
+  TooManyRequestsError: class TooManyRequestsError extends Error {},
+  ConnectionError: class ConnectionError extends Error {},
 }))
 vi.mock('consola', () => ({
   consola: {
@@ -82,8 +94,7 @@ describe('integration workflow', () => {
   })
 
   describe('useTranslateJSON', () => {
-    it('should translate keys for all target languages', async () => {
-      const { ofetch } = await import('ofetch')
+    it('should translate keys for all target languages via DeepL', async () => {
       const uniqueKeys = { newKey: 'Hello world' }
 
       // Create per-language payloads Map
@@ -91,31 +102,22 @@ describe('integration workflow', () => {
       perLanguagePayloads.set('fr', uniqueKeys)
       perLanguagePayloads.set('es', uniqueKeys)
 
-      const mockTranslation = { newKey: 'Bonjour le monde' }
-      vi.mocked(ofetch).mockResolvedValue(mockTranslation)
+      mockTranslateText.mockResolvedValue([{ text: 'Bonjour le monde' }])
       vi.mocked(resolve).mockImplementation(path => path)
 
       const result = await useTranslateJSON(perLanguagePayloads, mockConfig)
 
-      expect(ofetch).toHaveBeenCalledTimes(2) // fr and es
-      expect(ofetch).toHaveBeenCalledWith(
-        'https://api.jsondeepl.com/v1/cli',
-        expect.objectContaining({
-          method: 'POST',
-          body: JSON.stringify({
-            json: uniqueKeys,
-            src: 'en',
-            to: 'fr',
-            formality: 'prefer_less',
-            apiKey: 'test-api-key',
-          }),
-        }),
+      expect(mockTranslateText).toHaveBeenCalledTimes(2) // fr and es
+      expect(mockTranslateText).toHaveBeenCalledWith(
+        ['Hello world'],
+        'en',
+        'fr',
+        expect.objectContaining({ formality: 'prefer_less' }),
       )
       expect(result).toMatch(/^\d+_D[\d_]+_T[\d_]+(_[AP]M)?$/)
     })
 
-    it('should handle API errors gracefully', async () => {
-      const { ofetch } = await import('ofetch')
+    it('should handle DeepL errors gracefully', async () => {
       const { consola } = await import('consola')
       const uniqueKeys = { key: 'value' }
 
@@ -124,7 +126,7 @@ describe('integration workflow', () => {
       perLanguagePayloads.set('fr', uniqueKeys)
       perLanguagePayloads.set('es', uniqueKeys)
 
-      vi.mocked(ofetch).mockRejectedValue(new Error('API Error'))
+      mockTranslateText.mockRejectedValue(new Error('Translation Error'))
 
       await useTranslateJSON(perLanguagePayloads, mockConfig)
 
@@ -134,10 +136,13 @@ describe('integration workflow', () => {
   })
 
   describe('useMerging', () => {
-    it('should merge translations with existing locale files', async () => {
+    it('should merge translations with existing locale files, removing stale keys', async () => {
       const dateTime = '1696690200_D10_07_2023_T15_30_00_PM'
 
-      const existingFr = { existing: 'Existant' }
+      // Source has 'existing' and 'newKey', but not 'stale' — 'stale' should be
+      // removed from the merged fr.json now that cleanup runs as part of the merge.
+      const sourceData = { existing: 'Existing', newKey: 'New key' }
+      const existingFr = { existing: 'Existant', stale: 'Obsolète' }
       const newTranslationsFr = { newKey: 'Nouvelle clé' }
 
       vi.mocked(resolve).mockImplementation((path) => {
@@ -146,16 +151,19 @@ describe('integration workflow', () => {
         return '/locales'
       })
 
-      // Mock parseJsonFile calls
-      let callCount = 0
+      // mockConfig.target is ['fr', 'es']; useMerging reads: source once, then
+      // old-state + new-state per target language, in that order.
+      const readSequence = [
+        JSON.stringify(sourceData),
+        JSON.stringify(existingFr),
+        JSON.stringify(newTranslationsFr),
+        JSON.stringify({}),
+        JSON.stringify({}),
+      ]
+      let callIndex = 0
       vi.mocked(fs.existsSync).mockReturnValue(true)
-      vi.mocked(fs.promises.readFile).mockImplementation(() => {
-        callCount++
-        if (callCount % 2 === 1) {
-          return Promise.resolve(JSON.stringify(existingFr))
-        }
-        return Promise.resolve(JSON.stringify(newTranslationsFr))
-      })
+      vi.mocked(fs.promises.readFile).mockImplementation(() =>
+        Promise.resolve(readSequence[callIndex++] ?? '{}'))
 
       await useMerging(mockConfig, dateTime)
 
@@ -167,73 +175,49 @@ describe('integration workflow', () => {
     })
   })
 
-  describe('useUser', () => {
-    it('should proceed when user has sufficient credits', async () => {
-      const { ofetch } = await import('ofetch')
+  describe('useDeeplUsage', () => {
+    it('should proceed when usage is within limits and no prompt is required', async () => {
       const { consola } = await import('consola')
 
-      const mockUserResponse = {
-        user_id: 'user1',
-        isActive: true,
-        credit_balance: 100,
-        total: 10,
-        after: 90,
-      }
+      mockGetUsage.mockResolvedValue({
+        character: { count: 100, limit: 500_000 },
+        anyLimitReached: () => false,
+      })
 
-      vi.mocked(ofetch).mockResolvedValue(mockUserResponse)
+      await useDeeplUsage('test-api-key', 1000, false)
 
-      await useUser(mockConfig, 1000)
-
-      expect(ofetch).toHaveBeenCalledWith(
-        'https://api.jsondeepl.com/v1/cli-user',
-        expect.objectContaining({
-          method: 'POST',
-          body: {
-            apiKey: 'test-api-key',
-            characters: 1000,
-          },
-        }),
+      expect(consola.info).toHaveBeenCalledWith(
+        expect.stringContaining('100 / 500,000 characters used'),
       )
-      expect(consola.success).toHaveBeenCalledWith('You have $100 credits available.')
+      expect(consola.prompt).not.toHaveBeenCalled()
+      expect(process.exit).not.toHaveBeenCalled()
     })
 
-    it('should exit when user has insufficient credits', async () => {
-      const { ofetch } = await import('ofetch')
+    it('should warn when the translation may exceed the remaining quota', async () => {
       const { consola } = await import('consola')
 
-      const mockUserResponse = {
-        user_id: 'user1',
-        isActive: true,
-        credit_balance: 5,
-        total: 10,
-        after: -5,
-      }
+      mockGetUsage.mockResolvedValue({
+        character: { count: 499_500, limit: 500_000 },
+        anyLimitReached: () => false,
+      })
 
-      vi.mocked(ofetch).mockResolvedValue(mockUserResponse)
+      await useDeeplUsage('test-api-key', 1000, false)
 
-      await useUser(mockConfig, 1000)
-
-      expect(consola.error).toHaveBeenCalledWith('You do not have enough credits for this translation.')
-      expect(process.exit).toHaveBeenCalledWith(1)
+      expect(consola.warn).toHaveBeenCalledWith(
+        expect.stringContaining('may exceed your remaining DeepL quota'),
+      )
     })
 
-    it('should prompt user when prompt option is enabled', async () => {
-      const { ofetch } = await import('ofetch')
+    it('should cancel when the user declines the confirmation prompt', async () => {
       const { consola } = await import('consola')
 
-      const configWithPrompt = { ...mockConfig, options: { ...mockConfig.options, prompt: true } }
-      const mockUserResponse = {
-        user_id: 'user1',
-        isActive: true,
-        credit_balance: 100,
-        total: 10,
-        after: 90,
-      }
-
-      vi.mocked(ofetch).mockResolvedValue(mockUserResponse)
+      mockGetUsage.mockResolvedValue({
+        character: { count: 100, limit: 500_000 },
+        anyLimitReached: () => false,
+      })
       vi.mocked(consola.prompt).mockResolvedValue(false)
 
-      await useUser(configWithPrompt as Config, 1000)
+      await useDeeplUsage('test-api-key', 1000, true)
 
       expect(consola.prompt).toHaveBeenCalledWith('Do you want to proceed with the translation?', {
         type: 'confirm',

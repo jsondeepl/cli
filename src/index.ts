@@ -5,12 +5,11 @@ import {
   createLockFile,
   createPerLanguagePayloads,
   parseJsonFile,
-  useCleanup,
   useCountPerLanguage,
+  useDeeplUsage,
   useExtract,
   useMerging,
   useTranslateJSON,
-  useUser,
   validateJsonFileObject,
 } from './utils.ts'
 
@@ -57,20 +56,19 @@ async function main(): Promise<void> {
   const totalCharacters = await useCountPerLanguage(perLanguagePayloads)
   consola.success(`Total characters to translate: ${totalCharacters}`)
 
-  // check if the user has enough credits
-  await useUser(config, totalCharacters)
+  // check DeepL usage/quota and confirm before spending it
+  await useDeeplUsage(config.apiKey, totalCharacters, config.options.prompt, config.usage)
 
-  // 1. we send the per-language payloads to the API for translation
+  // 1. translate the per-language payloads directly via the DeepL API
   const dateTime = await useTranslateJSON(perLanguagePayloads, config)
 
   // 2. we create a lock file for the source locale
   await createLockFile(config.source, sourceData)
 
-  // 3. we merge the new translations with the last state
+  // 3. we merge the new translations with the last state, removing keys that no
+  // longer exist in source in the same pass
   await useMerging(config, dateTime)
   consola.success('Translation completed successfully!')
-  // 4. clean up and sorting
-  await useCleanup(config.langDir, config)
 }
 
 main()

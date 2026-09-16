@@ -1,16 +1,15 @@
+import type { Usage } from 'deepl-node'
 import type {
-  AiLangCodes,
   Config,
   JsonFileObject,
   SourceLanguageCode,
   TargetLanguageCode,
-  UseUser,
 } from './types/common.types.ts'
 import * as fs from 'node:fs'
 import process from 'node:process'
 import { consola } from 'consola'
-import { ofetch } from 'ofetch'
-import { dirname, join, resolve } from 'pathe'
+import { AuthorizationError, ConnectionError, QuotaExceededError, TooManyRequestsError, Translator } from 'deepl-node'
+import { dirname, resolve } from 'pathe'
 
 // #region 📂 Common Utility Functions
 
@@ -35,7 +34,7 @@ export async function ensureDirectoryExistence(filePath: string): Promise<void> 
  */
 export async function parseJsonFile(
   langDir: string,
-  lang: AiLangCodes | SourceLanguageCode | TargetLanguageCode,
+  lang: SourceLanguageCode | TargetLanguageCode,
 ): Promise<Record<string, string>> {
   const filePath = resolve(langDir, `${lang}.json`)
   if (!fs.existsSync(filePath)) {
@@ -65,28 +64,6 @@ async function checkNoArrays(o: any): Promise<void> {
   }
 }
 // #endregion 📂 Common Utility Functions
-
-export async function useStateCheck(src_locale: string, sourceData: Record<string, string>): Promise<void> {
-  // format current dateTime for the history directory name and lastJob option value
-  const dateTime = formattedNewDate()
-
-  // historyPath is used to store each translation job history
-  const historySourcePath = join('jsondeepl', 'history', `${dateTime}`, `${src_locale}.json`)
-  // const historyDirPath = join('jsondeepl', 'history', `${dateTime}`)
-
-  // the last state of the locale files (this will be used to determine unique keys)
-  const lastStateSourcePath = resolve(`jsondeepl/${src_locale}-lock.json`)
-  ensureDirectoryExistence(lastStateSourcePath)
-  ensureDirectoryExistence(historySourcePath)
-  const lastStateExists = fs.existsSync(lastStateSourcePath)
-  if (!lastStateExists) {
-    consola.start(`Creating jsondeepl/${src_locale}-lock.json for future translation reference...`)
-    fs.writeFileSync(lastStateSourcePath, JSON.stringify(sourceData, null, 2))
-    fs.writeFileSync(historySourcePath, JSON.stringify(sourceData, null, 2))
-    consola.success(`${lastStateSourcePath} created successfully.`)
-    // jsonData = initialJsonData
-  }
-}
 
 /**
  * Checks which target languages are missing and returns them.
@@ -257,48 +234,292 @@ export async function useCountPerLanguage(perLanguagePayloads: Map<string, JsonF
   return totalCharacters
 }
 
-// translation function with per-language payload support
+// #region 🌐 DeepL translation
+
+// Reuse one Translator instance per API key instead of constructing a new one for
+// every string/usage call (a run may make hundreds of translation calls per key).
+const translatorCache = new Map<string, Translator>()
+function getTranslator(apiKey: string): Translator {
+  let translator = translatorCache.get(apiKey)
+  if (!translator) {
+    translator = new Translator(apiKey)
+    translatorCache.set(apiKey, translator)
+  }
+  return translator
+}
+
+/**
+ * Confirms the given DeepL API key actually works before doing any file work.
+ * Exits the process on failure. Returns the usage fetched while validating,
+ * so callers don't need to fetch it again immediately after.
+ */
+export async function validateDeeplApiKey(apiKey: string): Promise<Usage> {
+  try {
+    return await getTranslator(apiKey).getUsage()
+  }
+  catch (error) {
+    if (error instanceof AuthorizationError) {
+      consola.error('Invalid DeepL API key. Get one at https://www.deepl.com/en/your-account/keys')
+    }
+    else {
+      consola.error('Could not reach DeepL to validate your API key:', error)
+    }
+    process.exit(1)
+  }
+}
+
+/**
+ * Shows the caller's current DeepL usage, warns if this translation may exceed
+ * their remaining quota, and (if enabled) prompts for confirmation before proceeding.
+ * @param apiKey - The caller's DeepL API key.
+ * @param characterCount - Number of characters this job is about to translate.
+ * @param promptConfirm - Whether to prompt the user to confirm before proceeding.
+ * @param preFetchedUsage - Usage already fetched moments earlier (e.g. by
+ * `validateDeeplApiKey`), to avoid an extra round-trip to DeepL for the same data.
+ */
+export async function useDeeplUsage(
+  apiKey: string,
+  characterCount: number,
+  promptConfirm: boolean,
+  preFetchedUsage?: Usage,
+): Promise<void> {
+  const usage = preFetchedUsage ?? await getTranslator(apiKey).getUsage()
+
+  if (usage.character) {
+    consola.info(
+      `DeepL usage: ${usage.character.count.toLocaleString()} / ${usage.character.limit.toLocaleString()} characters used this period.`,
+    )
+    if (usage.character.count + characterCount > usage.character.limit) {
+      consola.warn(
+        `This translation (${characterCount.toLocaleString()} characters) may exceed your remaining DeepL quota.`,
+      )
+    }
+  }
+
+  if (promptConfirm) {
+    const agreed = await consola.prompt('Do you want to proceed with the translation?', {
+      type: 'confirm',
+    })
+    if (!agreed) {
+      consola.info('Translation cancelled.')
+      process.exit(0)
+    }
+  }
+}
+
+// Split array into chunks
+function chunkArray<T>(arr: T[], size: number): T[][] {
+  return Array.from({ length: Math.ceil(arr.length / size) }, (_, i) =>
+    arr.slice(i * size, i * size + size))
+}
+
+async function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+// Serializes every DeepL network call behind a single queue with a fixed gap between
+// requests. Target languages translate concurrently (see useTranslateJSON), but they all
+// funnel their actual HTTP calls through here, so the real request rate to DeepL stays
+// capped at one call per REQUEST_GAP_MS no matter how many languages run at once.
+const REQUEST_GAP_MS = 200
+let requestQueue: Promise<void> = Promise.resolve()
+function scheduleRequest<T>(fn: () => Promise<T>): Promise<T> {
+  const run = requestQueue.then(fn)
+  requestQueue = run.then(() => undefined, () => undefined).then(() => delay(REQUEST_GAP_MS))
+  return run
+}
+
+// DeepL's API accepts at most 50 texts per translateText() request.
+const MAX_TEXTS_PER_REQUEST = 50
+
+// Replace and revert placeholders so DeepL doesn't translate interpolation tokens
+function encodePlaceholders(text: string): string {
+  return text
+    .replace(/\{\{([^}]+)\}\}/g, '<doublebraces>$1</doublebraces>')
+    .replace(/\{([^{}]+)\}/g, '<braces>$1</braces>')
+    // Only wrap `:name`-style placeholders (colon not preceded by a word char, followed by
+    // a letter/underscore) — excludes times/ratios like "10:30" or "3:2" that aren't placeholders.
+    .replace(/(?<![\w:]):([A-Z_]\w*)/gi, '<blade>$1</blade>')
+}
+
+function decodePlaceholders(text: string): string {
+  return text
+    .replace(/<doublebraces>([^<]+)<\/doublebraces>/g, '{{$1}}')
+    .replace(/<braces>([^<]+)<\/braces>/g, '{$1}')
+    .replace(/<blade>([^<]+)<\/blade>/g, ':$1')
+}
+
+// Collects every string leaf in a JSON object, depth-first, in the same order
+// rebuildWithTranslations() below walks it, so translated values line back up by index.
+function flattenLeaves(json: JsonFileObject): string[] {
+  const leaves: string[] = []
+  for (const key of Object.keys(json)) {
+    const value = json[key]
+    if (typeof value === 'string')
+      leaves.push(value)
+    else if (value && typeof value === 'object')
+      leaves.push(...flattenLeaves(value))
+  }
+  return leaves
+}
+
+// Rebuilds the same nested shape as `json` (including empty nested objects), substituting
+// each string leaf with the next translated value in order.
+function rebuildWithTranslations(json: JsonFileObject, translations: string[], cursor: { i: number }): JsonFileObject {
+  const result: JsonFileObject = {}
+  for (const key of Object.keys(json)) {
+    const value = json[key]
+    if (typeof value === 'string')
+      result[key] = translations[cursor.i++]!
+    else if (value && typeof value === 'object')
+      result[key] = rebuildWithTranslations(value, translations, cursor)
+  }
+  return result
+}
+
+/**
+ * Recursively translates every string value in a JSON object via DeepL, sending up to
+ * MAX_TEXTS_PER_REQUEST texts per request instead of one request per string.
+ */
+export async function translateJSON(
+  json: JsonFileObject,
+  srcLang: SourceLanguageCode,
+  targetLang: TargetLanguageCode,
+  formality: 'prefer_less' | 'prefer_more',
+  apiKey: string,
+): Promise<JsonFileObject> {
+  if (typeof json !== 'object' || json === null)
+    return json
+
+  const leafTexts = flattenLeaves(json)
+  const translatedTexts: string[] = []
+
+  for (const batch of chunkArray(leafTexts, MAX_TEXTS_PER_REQUEST)) {
+    const translations = await translateStrings(batch, srcLang, targetLang, formality, apiKey)
+    translatedTexts.push(...translations)
+  }
+
+  return rebuildWithTranslations(json, translatedTexts, { i: 0 })
+}
+
+/**
+ * Translates a batch of strings via DeepL in a single request, with retry, timeout & backoff.
+ * Auth/quota errors are not retryable and are thrown immediately.
+ */
+async function translateStrings(
+  texts: string[],
+  srcLang: SourceLanguageCode,
+  targetLang: TargetLanguageCode,
+  formality: 'prefer_less' | 'prefer_more',
+  apiKey: string,
+): Promise<string[]> {
+  if (texts.length === 0)
+    return []
+
+  const encodedTexts = texts.map(encodePlaceholders)
+  let attempt = 0
+  const maxAttempts = 5
+  const baseDelay = 1000 // 1s base delay for retries
+
+  while (attempt < maxAttempts) {
+    try {
+      const translator = getTranslator(apiKey)
+
+      // The losing side of the race is left pending; catch it independently so an
+      // abandoned timeout rejecting later doesn't surface as an unhandled rejection.
+      const timeoutPromise = delay(30000).then(() => {
+        throw new Error('Timeout: Translation took too long')
+      })
+      timeoutPromise.catch(() => {})
+
+      const translationResults = await Promise.race([
+        scheduleRequest(() => translator.translateText(encodedTexts, srcLang, targetLang, {
+          formality,
+          tagHandling: 'xml',
+          ignoreTags: ['blade', 'braces', 'doublebraces'],
+        })),
+        timeoutPromise,
+      ])
+      return translationResults.map(result => decodePlaceholders(result.text))
+    }
+    catch (error: any) {
+      if (error instanceof AuthorizationError || error instanceof QuotaExceededError) {
+        throw error
+      }
+
+      attempt++
+
+      const retryable
+        = error.code === 'ECONNRESET'
+          || error.code === 'ECONNABORTED'
+          || error instanceof TooManyRequestsError
+          || error instanceof ConnectionError
+          || (typeof error.message === 'string' && error.message.includes('socket hang up'))
+
+      if (retryable && attempt < maxAttempts) {
+        const waitTime = Math.min(baseDelay * 2 ** attempt, 10000) // Exponential backoff (max 10s)
+        await delay(waitTime)
+        continue
+      }
+
+      throw error
+    }
+  }
+  throw new Error(`Failed to translate text batch after ${maxAttempts} attempts`)
+}
+
+// Translation function with per-language payload support. Target languages translate
+// concurrently for wall-clock speed, but every language's DeepL calls funnel through the
+// same scheduleRequest() queue (see above), so the actual request rate to DeepL is capped
+// regardless of how many target languages are running at once.
 export async function useTranslateJSON(
   perLanguagePayloads: Map<string, JsonFileObject>,
   config: Config,
 ): Promise<string> {
   const dateTime = formattedNewDate()
   try {
-    for (const targetLanguage of config.target) {
+    const languagesToTranslate = config.target.filter((targetLanguage) => {
       const jsonToTranslate = perLanguagePayloads.get(targetLanguage) || {}
-
-      // Skip if nothing to translate for this language
       if (Object.keys(jsonToTranslate).length === 0) {
         consola.warn(`No keys to translate for ${targetLanguage}, skipping...`)
-        continue
+        return false
       }
+      return true
+    })
+
+    await Promise.all(languagesToTranslate.map(async (targetLanguage) => {
+      const jsonToTranslate = perLanguagePayloads.get(targetLanguage)!
 
       consola.start(`Translating from ${config.source} to ${targetLanguage}...`)
-      const translation = await ofetch('https://api.jsondeepl.com/v1/cli', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          json: jsonToTranslate,
-          src: config.source,
-          to: targetLanguage,
-          formality: config.formality,
-          apiKey: config.apiKey,
-        }),
-      })
+      const translation = await translateJSON(
+        jsonToTranslate,
+        config.source,
+        targetLanguage,
+        config.formality ?? 'prefer_less',
+        config.apiKey,
+      )
       consola.success(`${targetLanguage} Translation Done`)
       await saveJsonToFile(translation, `jsondeepl/history/${dateTime}/${targetLanguage}.json`)
-    }
+    }))
+
     consola.success('All Translations completed successfully.')
     return dateTime
   }
   catch (error) {
-    consola.error('Error during translation:', error)
+    if (error instanceof AuthorizationError) {
+      consola.error('Invalid DeepL API key.')
+    }
+    else if (error instanceof QuotaExceededError) {
+      consola.error('Your DeepL account has run out of translation quota.')
+    }
+    else {
+      consola.error('Error during translation:', error)
+    }
     consola.error('Translation failed.')
     process.exit(1)
   }
 }
+// #endregion 🌐 DeepL translation
 
 // save Json to a file
 export async function saveJsonToFile(json: JsonFileObject, filePath: string): Promise<void> {
@@ -317,17 +538,25 @@ export async function createLockFile(source: string, sourceData: JsonFileObject)
   fs.writeFileSync(lockFilePath, JSON.stringify(sourceData, null, 2), 'utf8')
 }
 
-// merge the new translations with the last state
+// Merges the new translations with the last state, then removes any keys that no longer
+// exist in source — in one read/write pass per target file, instead of a separate cleanup
+// pass that would re-read and re-write the same files right afterward.
 export async function useMerging(config: Config, dateTime: string): Promise<void> {
   const historyDir = resolve(`jsondeepl/history/${dateTime}`)
   const langDir = resolve(config.langDir)
   consola.info(historyDir)
+
+  const sourceJsonData = await parseJsonFile(langDir, config.source)
 
   for (const targetLanguage of config.target) {
     consola.start(`Merging ${targetLanguage}.json`)
     const oldState = await parseJsonFile(langDir, targetLanguage)
     const newState = await parseJsonFile(historyDir, targetLanguage)
     const mergedJson = await mergeFiles(oldState, newState)
+
+    const keysToRemove = findKeysToRemove(mergedJson, sourceJsonData)
+    removeKeysByPath(mergedJson, keysToRemove)
+
     await saveJsonToFile(mergedJson, `${langDir}/${targetLanguage}.json`)
     consola.success(`Merged ${targetLanguage}.json successfully.`)
   }
@@ -362,45 +591,6 @@ export async function mergeFiles(
   }
 
   return merged
-}
-
-/// This function fetches the user data from the API using the provided API key
-/// It returns the user data if successful, or null if there was an error.
-export async function useUser(config: Config, characterCount: number): Promise<UseUser | null> {
-  try {
-    const user = await ofetch('https://api.jsondeepl.com/v1/cli-user', {
-      method: 'POST',
-      body: {
-        apiKey: config.apiKey,
-        characters: characterCount,
-      },
-    })
-    consola.success(`You have $${user.credit_balance} credits available.`)
-    consola.info(`Total characters: ${characterCount} | Cost: $${user.total.toFixed(3)} | Balance after: $${user.after.toFixed(4)}`)
-
-    if (user.isActive === false) {
-      consola.error('Your subscription is inactive. Please renew your subscription to continue using the service.')
-      process.exit(1)
-    }
-    if (user.after < 0) {
-      consola.error('You do not have enough credits for this translation.')
-      process.exit(1)
-    }
-    if (config.options.prompt) {
-      const agreed = await consola.prompt('Do you want to proceed with the translation?', {
-        type: 'confirm',
-      })
-      if (!agreed) {
-        consola.info('Translation cancelled.')
-        process.exit(0)
-      }
-    }
-    return user
-  }
-  catch (error) {
-    consola.error('Error fetching user data:', error)
-    return null
-  }
 }
 
 export function removeKeysByPath(obj: JsonFileObject, paths: string[]): void {

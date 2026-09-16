@@ -1,7 +1,7 @@
 import * as fs from 'node:fs'
 import { resolve } from 'pathe'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createLockFile, createPerLanguagePayloads, detectMissingTargetLanguages, useCleanup, useCountPerLanguage, useStateCheck, validateJsonFileObject } from '../src/utils.js'
+import { createLockFile, createPerLanguagePayloads, detectMissingTargetLanguages, useCleanup, useCountPerLanguage, validateJsonFileObject } from '../src/utils.js'
 
 vi.mock('node:fs')
 vi.mock('pathe')
@@ -32,18 +32,6 @@ describe('utils additional coverage', () => {
       const obj = { a: { b: [1, 2, 3] } }
       await validateJsonFileObject(obj as any)
       expect(process.exit).toHaveBeenCalledWith(1)
-    })
-  })
-
-  describe('useStateCheck', () => {
-    it('creates lock and history files when no lock exists', async () => {
-      vi.mocked(fs.existsSync).mockReturnValue(false)
-      vi.mocked(resolve).mockImplementation((p: string) => p)
-
-      await useStateCheck('en', { hello: 'world' } as any)
-
-      expect(fs.writeFileSync).toHaveBeenCalled()
-      expect(fs.writeFileSync).toHaveBeenCalledTimes(2)
     })
   })
 
