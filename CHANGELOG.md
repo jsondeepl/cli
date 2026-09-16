@@ -1,6 +1,38 @@
 # Changelog
 
 
+## v1.0.0
+
+[compare changes](https://github.com/jsondeepl/cli/compare/v0.0.10...v1.0.0)
+
+First stable release. `@jsondeepl/cli` has been translating JSON i18n files directly through the caller's own DeepL API key for several releases now — this marks that flow, along with a round of correctness and performance hardening, as stable.
+
+### 🚀 Enhancements
+
+- Batch translation requests up to 50 texts per DeepL call instead of one request per string, cutting round-trips substantially for larger translation jobs ([670d299](https://github.com/jsondeepl/cli/commit/670d299))
+- Translate all target languages concurrently, while a shared rate limiter keeps the real request rate to DeepL capped no matter how many languages run at once ([670d299](https://github.com/jsondeepl/cli/commit/670d299))
+- Merge translations and remove stale keys in a single read/write pass per target locale file instead of two ([670d299](https://github.com/jsondeepl/cli/commit/670d299))
+
+### 🩹 Fixes
+
+- Prevent a rare unhandled-rejection crash from the translation timeout race ([670d299](https://github.com/jsondeepl/cli/commit/670d299))
+- Stop the `:name` placeholder pattern from swallowing legitimate colon text like times (`10:30`) and scores (`3:2`) ([670d299](https://github.com/jsondeepl/cli/commit/670d299))
+- Apply the documented default when `config.json` is missing its `options` object, instead of crashing later ([8089ca7](https://github.com/jsondeepl/cli/commit/8089ca7))
+- Avoid a redundant DeepL usage API call on every run ([8089ca7](https://github.com/jsondeepl/cli/commit/8089ca7))
+
+### 🏡 Chore
+
+- Migrate tooling from npm to pnpm ([9bba8cb](https://github.com/jsondeepl/cli/commit/9bba8cb))
+- Rework CI for pnpm; releases are now a deliberate local step rather than triggered by every push ([d68d2de](https://github.com/jsondeepl/cli/commit/d68d2de))
+
+### 📖 Documentation
+
+- Correct the README for the direct-DeepL integration and remove the stale copilot-instructions.md ([7ef0406](https://github.com/jsondeepl/cli/commit/7ef0406))
+
+### ❤️ Contributors
+
+- Kian Salout ([@Kiansa](https://github.com/Kiansa))
+
 ## v0.0.10
 
 [compare changes](https://github.com/jsondeepl/cli/compare/v0.0.9...v0.0.10)
