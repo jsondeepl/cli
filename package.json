@@ -1,11 +1,12 @@
 {
   "name": "@jsondeepl/cli",
   "version": "0.0.10",
-  "description": "A CLI tool to translate JSON files using JsonDeepL API",
+  "description": "A CLI tool to translate JSON i18n files using the DeepL API — bring your own DeepL API key",
   "repository": "jsondeepl/cli",
   "license": "MIT",
   "sideEffects": false,
   "type": "module",
+  "packageManager": "pnpm@12.4.1",
   "exports": {
     ".": "./dist/index.mjs"
   },
@@ -21,21 +22,25 @@
     "dev": "vitest dev",
     "lint": "eslint .",
     "lint:fix": "automd && eslint . --fix",
-    "prepack": "npm run build",
-    "release": "npm run test && npx changelogen@latest --release --patch && npm publish && git push --follow-tags",
-    "test": "npm run lint && npm run test:types && vitest run --coverage",
+    "prepack": "pnpm run build",
+    "release": "pnpm run test && pnpm dlx changelogen@latest --release && pnpm publish && git push --follow-tags",
+    "release:major": "pnpm run test && pnpm dlx changelogen@latest --release --major && pnpm publish && git push --follow-tags",
+    "release:minor": "pnpm run test && pnpm dlx changelogen@latest --release --minor && pnpm publish && git push --follow-tags",
+    "release:patch": "pnpm run test && pnpm dlx changelogen@latest --release --patch && pnpm publish && git push --follow-tags",
+    "test": "pnpm run lint && pnpm run test:types && vitest run --coverage",
     "test:types": "tsc --noEmit --skipLibCheck"
   },
   "devDependencies": {
-    "@antfu/eslint-config": "^6.7.3",
-    "consola": "^3.4.2",
-    "eslint": "^9.39.2",
+    "@antfu/eslint-config": "^9.5.1",
     "@types/node": "^25.0.3",
-    "@vitest/coverage-v8": "^4.0.16",
-    "automd": "^0.4.2",
+    "@vitest/coverage-v8": "^5.0.1",
+    "automd": "^0.4.3",
     "changelogen": "^0.6.2",
-    "obuild": "^0.4.14",
-    "typescript": "^5.9.3",
-    "vitest": "^4.0.16"
+    "consola": "^3.4.2",
+    "deepl-node": "^1.28.0",
+    "eslint": "^10.10.0",
+    "obuild": "^0.4.40",
+    "typescript": "^6.0.3",
+    "vitest": "^5.0.1"
   }
 }
