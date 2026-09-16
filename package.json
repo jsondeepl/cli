@@ -1,6 +1,6 @@
 {
   "name": "@jsondeepl/cli",
-  "version": "0.0.10",
+  "version": "1.0.0",
   "description": "A CLI tool to translate JSON i18n files using the DeepL API — bring your own DeepL API key",
   "repository": "jsondeepl/cli",
   "license": "MIT",
