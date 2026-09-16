@@ -11,11 +11,13 @@
 [![CI](https://img.shields.io/github/actions/workflow/status/jsondeepl/cli/checks.yml?style=flat&label=CI&color=655dc6)](https://github.com/jsondeepl/cli/actions)
 [![License](https://img.shields.io/badge/License-MIT-655dc6)](LICENSE)
 
-[Installation](#installation) • [Usage](#usage) • [Configuration](#configuration) • [How it works](#how-it-works)
+[Documentation](https://jsondeepl.com/docs) • [Installation](#installation) • [Usage](#usage) • [Configuration](#configuration) • [How it works](#how-it-works)
 
 </div>
 
 `jsondeepl` is a CLI that translates JSON i18n files directly through the [DeepL API](https://www.deepl.com/), using your own DeepL API key. There's no account to create, no backend in between, and no usage of ours to pay for — your files and your key talk to DeepL directly.
+
+Full documentation, including all config options, lives at [jsondeepl.com/docs](https://jsondeepl.com/docs).
 
 ## Features
 
