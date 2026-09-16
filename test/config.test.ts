@@ -20,7 +20,7 @@ vi.mock('consola', () => ({
 // Mock utils
 vi.mock('../src/utils.js', () => ({
   ensureDirectoryExistence: vi.fn(),
-  useUser: vi.fn(),
+  validateDeeplApiKey: vi.fn(),
 }))
 
 describe('configuration system', () => {
@@ -78,7 +78,7 @@ describe('configuration system', () => {
       expect(process.exit).toHaveBeenCalledWith(0)
     })
 
-    it('should validate existing config file', async () => {
+    it('should validate existing config file and validate the DeepL API key', async () => {
       const mockConfig: Config = {
         source: 'en',
         target: ['fr', 'es'],
@@ -88,44 +88,31 @@ describe('configuration system', () => {
         options: { prompt: false },
       }
 
-      const { useUser } = await import('../src/utils.js')
+      const { validateDeeplApiKey } = await import('../src/utils.js')
 
       // Provide API key via environment variable as useConfigLoader expects
-      process.env.JSONDEEPL_API_KEY = 'test-key'
+      process.env.DEEPL_API_KEY = 'test-key'
 
       vi.mocked(fs.existsSync).mockReturnValue(true)
       vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify(mockConfig))
-      vi.mocked(useUser).mockResolvedValue({
-        apiKey: 'test-key',
-        user_id: 'user1',
-        isActive: true,
-        credit_balance: 100,
-        total: 0,
-        after: 100,
-      })
+      vi.mocked(validateDeeplApiKey).mockResolvedValue({} as any)
       vi.mocked(resolve).mockImplementation(path => path)
 
       const result = await useConfigLoader()
 
-      expect(result).toEqual(mockConfig)
-      expect(useUser).toHaveBeenCalledWith(result, 0)
+      expect(result).toEqual({ ...mockConfig, usage: {} })
+      expect(validateDeeplApiKey).toHaveBeenCalledWith('test-key')
     })
 
-    it('should exit when API key is invalid', async () => {
-      const mockConfig: Config = {
-        source: 'en',
-        target: ['fr'],
-        langDir: './locales',
-        apiKey: 'invalid-key',
-        options: { prompt: false },
-      }
+    it('should exit when the DEEPL_API_KEY environment variable is missing', async () => {
+      const mockConfig: any = { ...defaultConfig }
+      delete mockConfig.apiKey
+      delete process.env.DEEPL_API_KEY
 
-      const { useUser } = await import('../src/utils.js')
       const { consola } = await import('consola')
 
       vi.mocked(fs.existsSync).mockReturnValue(true)
       vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify(mockConfig))
-      vi.mocked(useUser).mockResolvedValue(null)
       vi.mocked(resolve).mockImplementation(path => path)
 
       try {
@@ -135,37 +122,41 @@ describe('configuration system', () => {
         // Expected to throw due to process.exit mock
       }
 
-      expect(consola.error).toHaveBeenCalledWith('Invalid API key. Please check your jsondeepl/config.json file.')
+      expect(consola.error).toHaveBeenCalledWith(
+        'DEEPL_API_KEY environment variable is not set. Get a free key at https://www.deepl.com/en/your-account/keys',
+      )
       expect(process.exit).toHaveBeenCalledWith(1)
     })
 
-    it('should exit when user has no credits', async () => {
+    it('should exit when the DeepL API key is invalid', async () => {
       const mockConfig: Config = {
         source: 'en',
         target: ['fr'],
         langDir: './locales',
-        apiKey: 'valid-key',
+        apiKey: 'invalid-key',
         options: { prompt: false },
       }
 
-      const { useUser } = await import('../src/utils.js')
-      const { consola } = await import('consola')
+      const { validateDeeplApiKey } = await import('../src/utils.js')
+
+      process.env.DEEPL_API_KEY = 'invalid-key'
 
       vi.mocked(fs.existsSync).mockReturnValue(true)
       vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify(mockConfig))
-      vi.mocked(useUser).mockResolvedValue({
-        apiKey: 'test-key',
-        user_id: 'user1',
-        isActive: true,
-        credit_balance: 0,
-        total: 0,
-        after: -1,
+      // validateDeeplApiKey exits the process itself on an invalid key
+      vi.mocked(validateDeeplApiKey).mockImplementation(async () => {
+        process.exit(1)
       })
       vi.mocked(resolve).mockImplementation(path => path)
 
-      await useConfigLoader()
+      try {
+        await useConfigLoader()
+      }
+      catch {
+        // Expected to throw due to process.exit mock
+      }
 
-      expect(consola.error).toHaveBeenCalledWith('You have no credits available. Please add credits to your account.')
+      expect(validateDeeplApiKey).toHaveBeenCalledWith('invalid-key')
       expect(process.exit).toHaveBeenCalledWith(1)
     })
   })

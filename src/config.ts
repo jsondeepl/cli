@@ -4,7 +4,7 @@ import process from 'node:process'
 import { consola } from 'consola'
 import { config as dotenvConfig } from 'dotenv'
 import { resolve } from 'pathe'
-import { ensureDirectoryExistence, useUser } from './utils.ts'
+import { ensureDirectoryExistence, validateDeeplApiKey } from './utils.ts'
 
 // Load environment variables from .env file
 dotenvConfig()
@@ -75,9 +75,9 @@ export async function useConfigLoader(): Promise<Config> {
     await ensureDirectoryExistence(historyDirPath)
   }
 
-  const apiKey = process.env.JSONDEEPL_API_KEY
+  const apiKey = process.env.DEEPL_API_KEY
   if (!apiKey) {
-    consola.error('JSONDEEPL_API_KEY environment variable is not set.')
+    consola.error('DEEPL_API_KEY environment variable is not set. Get a free key at https://www.deepl.com/en/your-account/keys')
     process.exit(1)
   }
   const configData = fs.readFileSync(configPath, 'utf8')
@@ -89,21 +89,12 @@ export async function useConfigLoader(): Promise<Config> {
     )
     process.exit(1)
   }
-  const user = await useUser(config, 0)
-  if (!user || !user.user_id) {
-    consola.error('Invalid API key. Please check your jsondeepl/config.json file.')
-    process.exit(1)
-  }
-  if (!user.isActive) {
-    consola.error('Your account is inactive. Please contact support to reactivate your account.')
-    process.exit(1)
-  }
-  if (user.credit_balance <= 0) {
-    consola.error('You have no credits available. Please add credits to your account.')
-    process.exit(1)
-  }
+  config.options ??= defaultConfig.options
 
-  consola.info(`You have $${user.credit_balance} credits available.`)
+  // Confirm the key actually works before doing any file work; reuse the usage this
+  // fetches so callers don't need a second DeepL round-trip for the same data.
+  config.usage = await validateDeeplApiKey(config.apiKey)
+
   consola.success('Configuration loaded successfully.')
   return config as Config
 }
@@ -119,7 +110,7 @@ async function validateConfig(config: Config): Promise<boolean> {
     consola.error('Configuration is missing the language directory.')
   }
   if (!config.apiKey) {
-    consola.error('Configuration is missing the JsonDeepL API key.')
+    consola.error('Configuration is missing the DeepL API key.')
   }
   if (!config.options) {
     consola.warn('Configuration is missing the options object. Using default options.')

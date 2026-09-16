@@ -18,14 +18,14 @@ vi.mock('consola', () => ({
 
 vi.mock('../src/utils.js', () => ({
   ensureDirectoryExistence: vi.fn(),
-  useUser: vi.fn(),
+  validateDeeplApiKey: vi.fn(),
 }))
 
 describe('useConfigLoader - missing fields coverage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.spyOn(process, 'exit').mockImplementation(() => undefined as never)
-    process.env.JSONDEEPL_API_KEY = 'test-key'
+    process.env.DEEPL_API_KEY = 'test-key'
   })
 
   it('exits when source is missing', async () => {
@@ -90,7 +90,7 @@ describe('useConfigLoader - missing fields coverage', () => {
     const cfg: any = { ...defaultConfig }
     delete cfg.apiKey
     // Ensure environment variable is not set to simulate missing API key
-    delete process.env.JSONDEEPL_API_KEY
+    delete process.env.DEEPL_API_KEY
     vi.mocked(fs.existsSync).mockReturnValue(true)
     vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify(cfg))
     vi.mocked(resolve).mockImplementation(path => path)
@@ -102,11 +102,11 @@ describe('useConfigLoader - missing fields coverage', () => {
     }
 
     const { consola } = await import('consola')
-    expect(consola.error).toHaveBeenCalledWith('JSONDEEPL_API_KEY environment variable is not set.')
+    expect(consola.error).toHaveBeenCalledWith(
+      'DEEPL_API_KEY environment variable is not set. Get a free key at https://www.deepl.com/en/your-account/keys',
+    )
     expect(process.exit).toHaveBeenCalledWith(1)
   })
-
-  // 'engine' is not required by the current configuration schema; no test needed.
 
   it('warns when options is missing but proceeds', async () => {
     const cfg: any = { ...defaultConfig }
@@ -114,8 +114,8 @@ describe('useConfigLoader - missing fields coverage', () => {
 
     vi.mocked(fs.existsSync).mockReturnValue(true)
     vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify(cfg))
-    const { useUser } = await import('../src/utils.js')
-    vi.mocked(useUser).mockResolvedValue({ apiKey: 'k', user_id: 'u', isActive: true, credit_balance: 10, total: 0, after: 10 })
+    const { validateDeeplApiKey } = await import('../src/utils.js')
+    vi.mocked(validateDeeplApiKey).mockResolvedValue({} as any)
     vi.mocked(resolve).mockImplementation(path => path)
 
     const result = await useConfigLoader()
@@ -123,5 +123,6 @@ describe('useConfigLoader - missing fields coverage', () => {
     const { consola } = await import('consola')
     expect(consola.warn).toHaveBeenCalledWith('Configuration is missing the options object. Using default options.')
     expect(result).toBeDefined()
+    expect(result.options).toEqual(defaultConfig.options)
   })
 })
