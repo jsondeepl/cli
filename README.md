@@ -7,7 +7,7 @@
 
 <!-- /automd -->
 
-A CLI tool to translate JSON files using JsonDeepL API
+A CLI tool to translate JSON i18n files using the DeepL API. Free and open source — bring your own [DeepL API key](https://www.deepl.com/en/your-account/keys), nothing is sent anywhere except directly to DeepL.
 
 ## Usage
 
@@ -17,20 +17,25 @@ A CLI tool to translate JSON files using JsonDeepL API
 npm i -g @jsondeepl/cli
 ```
 
-### 2. Run command in your terminal:
+### 2. Set your DeepL API key:
+
+```sh
+export DEEPL_API_KEY=your-deepl-api-key
+```
+
+Or add it to a `.env` file in your project root. Get a free key at [deepl.com/your-account/keys](https://www.deepl.com/en/your-account/keys) (the free tier works fine).
+
+### 3. Run command in your terminal:
 
 ```sh
 jsondeepl
 ```
 
 First time you run the command for a project, it will automatically create a `/jsondeepl` directory and `/jsondeepl/config.json` configuration file.
-You will need Your [JsonDeepL API key](https://jsondeepl.com/dashboard/api-keys).
 
 ```json
 // jsondeepl/config.json
 {
-  "apiKey": "",
-  "engine": "deepl",
   "formality": "prefer_less",
   "langDir": "./i18n/locales",
   "options": {
